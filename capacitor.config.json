@@ -1,9 +1,6 @@
 {
-  "appId": "com.yourcompany.emle",
+  "appId": "com.hisham.app",
   "appName": "EMLE Study Tracker",
-  "webDir": ".",
-  "bundledWebRuntime": false,
-  "server": {
-    "androidScheme": "https"
-  }
+  "webDir": "www",
+  "bundledWebRuntime": false
 }
