@@ -1,0 +1,9 @@
+{
+  "appId": "com.yourcompany.emle",
+  "appName": "EMLE Study Tracker",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
