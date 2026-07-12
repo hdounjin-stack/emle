@@ -1,0 +1,3363 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b1020">
+<title>EMLE Study Tracker</title>
+<style>
+  :root{
+    --bg1:#0b1020; --bg2:#161033; --bg3:#0e2136;
+    --blob1:#4f7cff; --blob2:#7c4fff; --blob3:#22d3c9;
+    --text:#eef1fb; --muted:#9aa4c0;
+    --glass:rgba(255,255,255,.07); --glass-strong:rgba(255,255,255,.12);
+    --glass-border:rgba(255,255,255,.16);
+    --glass-inner:#141a30;
+    --primary:#5eead4; --primary2:#7c9bff;
+    --accent:#ffb648;
+    --shadow:0 8px 32px rgba(0,0,0,.45);
+    --radius:22px;
+  }
+  [data-theme="light"]{
+    --bg1:#eef2fb; --bg2:#e3ecff; --bg3:#f3eaff;
+    --blob1:#a9c4ff; --blob2:#d5b8ff; --blob3:#9df0e6;
+    --text:#1b2340; --muted:#63698a;
+    --glass:rgba(255,255,255,.55); --glass-strong:rgba(255,255,255,.7);
+    --glass-border:rgba(255,255,255,.9);
+    --glass-inner:#f3f6ff;
+    --primary:#12a893; --primary2:#4c6fe0;
+    --accent:#e08a1e;
+    --shadow:0 8px 32px rgba(90,110,160,.18);
+  }
+  /* ---- optional accent color presets (layout stays identical) ---- */
+  [data-accent="sunset"]{ --primary:#ff9457; --primary2:#ff6188; --accent:#ffd166; }
+  [data-accent="rose"]{ --primary:#ff7bac; --primary2:#c084fc; --accent:#ff9de2; }
+  [data-accent="violet"]{ --primary:#a78bfa; --primary2:#6d5bff; --accent:#f0abfc; }
+  [data-accent="emerald"]{ --primary:#34d399; --primary2:#22a5b8; --accent:#a3e635; }
+  [data-accent="ocean"]{ --primary:#38bdf8; --primary2:#6366f1; --accent:#5eead4; }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:"Segoe UI","Tahoma",Arial,sans-serif;
+    color:var(--text);
+    background:var(--bg1);
+    overflow-x:hidden;
+    min-height:100vh;
+    transition:background .4s,color .4s;
+  }
+  .bg-blobs{position:fixed;inset:0;z-index:-1;overflow:hidden;background:
+      radial-gradient(circle at 20% 15%, var(--bg2), transparent 60%),
+      radial-gradient(circle at 80% 85%, var(--bg3), transparent 60%),
+      var(--bg1);
+      contain:strict;}
+  .blob{position:absolute;border-radius:50%;filter:blur(46px);opacity:.5;will-change:transform;}
+  .blob1{width:420px;height:420px;background:var(--blob1);top:-120px;right:-100px;animation:float1 22s ease-in-out infinite;}
+  .blob2{width:380px;height:380px;background:var(--blob2);bottom:-140px;left:-120px;animation:float2 26s ease-in-out infinite;}
+  .blob3{width:320px;height:320px;background:var(--blob3);top:40%;left:35%;animation:float3 30s ease-in-out infinite;}
+  @keyframes float1{0%,100%{transform:translate3d(0,0,0) scale(1);}50%{transform:translate3d(-60px,60px,0) scale(1.12);}}
+  @keyframes float2{0%,100%{transform:translate3d(0,0,0) scale(1);}50%{transform:translate3d(70px,-50px,0) scale(1.08);}}
+  @keyframes float3{0%,100%{transform:translate3d(0,0,0) scale(1);}50%{transform:translate3d(-40px,-40px,0) scale(1.15);}}
+  @media (prefers-reduced-motion: reduce){
+    .blob{animation:none !important;}
+    .fill::after{animation:none !important;}
+  }
+  /* Low-power fallback: on devices too weak for backdrop-filter, blobs are
+     hidden automatically and the flat background color takes over cleanly. */
+  @media (max-width:480px) and (max-height:480px){ .blob{display:none;} }
+
+  /* ===== Lightweight Mode (manual opt-in for weak/slow devices) ===== */
+  [data-perf="lite"] .blob{display:none;}
+  [data-perf="lite"] .glass{
+    backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+    background:var(--glass-strong);box-shadow:none;
+  }
+  [data-perf="lite"] *{
+    animation:none !important;
+    transition:none !important;
+  }
+  [data-perf="lite"] .tile:hover, [data-perf="lite"] .topic-chip:hover{transform:none;}
+  [data-perf="lite"] .fill::after{display:none;}
+  [data-perf="lite"] .tile::before{display:none;}
+
+  .glass{
+    background:var(--glass);
+    backdrop-filter:blur(14px) saturate(140%);
+    -webkit-backdrop-filter:blur(14px) saturate(140%);
+    border:1px solid var(--glass-border);
+    box-shadow:var(--shadow), inset 0 1px 0 rgba(255,255,255,.15);
+    border-radius:var(--radius);
+  }
+
+  .pinned-header{position:sticky;top:0;z-index:60;padding-top:12px;background:var(--bg1);}
+  .topbar{
+    margin:0 12px;
+    padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand .mark{
+    width:38px;height:38px;border-radius:12px;flex-shrink:0;
+    background:linear-gradient(135deg,var(--primary),var(--primary2));
+    display:flex;align-items:center;justify-content:center;font-weight:800;color:#08101c;font-size:15px;
+    box-shadow:0 4px 14px rgba(94,234,212,.35);
+  }
+  .brand h1{margin:0;font-size:17px;font-weight:800;}
+  .brand small{display:block;color:var(--muted);font-size:11px;font-weight:500;}
+  .dock{display:flex;align-items:center;gap:6px;}
+  .dock button{
+    height:38px;padding:0 12px;border-radius:12px;border:1px solid var(--glass-border);
+    background:var(--glass-strong);color:var(--text);cursor:pointer;font-size:15px;
+    display:flex;align-items:center;justify-content:center;gap:5px;transition:transform .2s, background .2s;
+    white-space:nowrap;
+  }
+  .dock button .lbl{font-size:11.5px;font-weight:700;display:none;}
+  .dock button:hover{transform:translateY(-2px);background:rgba(255,255,255,.2);}
+  .dock button:active{transform:scale(.94);}
+  @media(min-width:700px){ .dock button .lbl{display:inline;} }
+  .pomodoro-badge{
+    display:none;position:absolute;top:-3px;left:-3px;width:14px;height:14px;border-radius:50%;
+    background:conic-gradient(var(--primary) calc(var(--p,0)*3.6deg), rgba(255,255,255,.25) 0deg);
+    border:1.5px solid var(--bg1);pointer-events:none;
+  }
+  .pomodoro-badge.active{display:block;}
+
+  .overall-wrap{margin:14px 12px 0;padding:16px 20px;}
+  .overall-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;}
+  .overall-top h2{margin:0;font-size:14px;font-weight:700;color:var(--muted);}
+  .overall-num{font-size:26px;font-weight:800;background:linear-gradient(90deg,var(--primary),var(--primary2));
+    -webkit-background-clip:text;background-clip:text;color:transparent;}
+  .track{height:12px;border-radius:20px;background:rgba(255,255,255,.12);overflow:hidden;position:relative;}
+  .fill{height:100%;border-radius:20px;background:linear-gradient(90deg,var(--primary),var(--primary2));
+    transition:width .5s cubic-bezier(.4,0,.2,1);position:relative;}
+  .fill::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent);
+    width:60px;animation:shine 2.6s linear infinite;}
+  @keyframes shine{0%{transform:translateX(-60px);}100%{transform:translateX(320px);}}
+  .mini-stats{display:flex;gap:16px;margin-top:10px;font-size:12px;color:var(--muted);flex-wrap:wrap;}
+  .mini-stats b{color:var(--text);}
+  .streak-pill{
+    display:inline-flex;align-items:center;gap:5px;background:rgba(255,182,72,.15);
+    border:1px solid rgba(255,182,72,.35);color:var(--accent);
+    padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:800;
+  }
+
+  .search-wrap{margin:14px 12px 0;padding:4px 16px;display:flex;align-items:center;gap:10px;}
+  .search-wrap input{
+    flex:1;background:transparent;border:none;outline:none;color:var(--text);
+    font-size:15px;padding:10px 4px;font-family:inherit;
+  }
+  .search-wrap input::placeholder{color:var(--muted);}
+
+  main{max-width:1100px;margin:0 auto;padding:16px 12px 60px;}
+  .sections-header{display:flex;align-items:center;justify-content:space-between;margin:4px 4px 12px;}
+  .sections-header h2{margin:0;font-size:15px;font-weight:800;letter-spacing:.3px;color:var(--text);}
+  .garden-wrap{margin-top:20px;padding:16px 18px;}
+  .garden-head{display:flex;justify-content:space-between;align-items:center;font-size:13.5px;font-weight:800;margin-bottom:10px;}
+  .garden-count{font-size:11.5px;color:var(--muted);font-weight:600;}
+  .garden-plants{display:flex;flex-wrap:wrap;gap:6px;min-height:34px;align-items:flex-end;}
+  .garden-plant{font-size:22px;animation:plantPop .35s ease;}
+  @keyframes plantPop{from{transform:scale(0);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .garden-empty{font-size:12px;color:var(--muted);}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px;margin-top:6px;}
+  .tile{
+    position:relative;padding:18px 16px;cursor:pointer;overflow:hidden;
+    display:flex;flex-direction:column;justify-content:space-between;min-height:170px;
+    transition:transform .25s cubic-bezier(.2,.8,.3,1.2), box-shadow .25s;contain:content;
+  }
+  .tile::before{
+    content:'';position:absolute;inset:0;border-radius:var(--radius);
+    background:linear-gradient(135deg, var(--tc,var(--primary)) 0%, transparent 55%);
+    opacity:.16;pointer-events:none;
+  }
+  .tile:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 16px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.2);}
+  .tile:active{transform:translateY(-2px) scale(.99);}
+  .tile-top{display:flex;justify-content:space-between;align-items:center;}
+  .tile-icon{
+    width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;
+    font-size:20px;background:rgba(255,255,255,.12);border:1px solid var(--glass-border);flex-shrink:0;
+  }
+  .ring{
+    --p:0; width:44px;height:44px;border-radius:50%;position:relative;flex-shrink:0;
+    background:conic-gradient(var(--tc,var(--primary)) calc(var(--p)*3.6deg), rgba(255,255,255,.15) 0deg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .ring::after{content:'';position:absolute;inset:4px;border-radius:50%;background:var(--glass-inner);}
+  .ring span{position:relative;z-index:1;font-size:10px;font-weight:800;}
+  .tile-title-row{display:flex;align-items:center;gap:8px;margin-top:14px;}
+  .tile-title{font-size:16px;font-weight:800;line-height:1.3;flex:1;min-width:0;}
+  .tile-sub{font-size:12px;color:var(--muted);margin-top:4px;}
+  .tile-bar{height:6px;border-radius:10px;background:rgba(255,255,255,.15);margin-top:12px;overflow:hidden;}
+  .tile-bar-fill{height:100%;border-radius:10px;background:var(--tc,var(--primary));transition:width .5s;}
+
+  .overlay{
+    position:fixed;inset:0;z-index:200;display:none;
+    background:rgba(4,6,16,.55);backdrop-filter:blur(6px);
+    align-items:flex-end;justify-content:center;
+  }
+  .overlay.open{display:flex;animation:fadeIn .25s ease;}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+  @media(min-width:760px){ .overlay{align-items:center;} }
+  .modal{
+    width:100%;max-width:760px;max-height:88vh;
+    border-radius:26px 26px 0 0;
+    display:flex;flex-direction:column;overflow:hidden;
+    animation:slideUp .3s cubic-bezier(.2,.8,.3,1);
+  }
+  @media(min-width:760px){ .modal{border-radius:26px;max-height:82vh;} }
+  @keyframes slideUp{from{transform:translateY(40px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  .modal-head{
+    padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+    border-bottom:1px solid var(--glass-border);flex-shrink:0;
+  }
+  .modal-head-left{display:flex;align-items:center;gap:12px;min-width:0;flex:1;}
+  .modal-head-left .tile-icon{width:40px;height:40px;font-size:18px;}
+  .modal-title{font-size:23px;font-weight:900;letter-spacing:.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .modal-sub{font-size:12.5px;color:var(--muted);margin-top:3px;font-weight:600;}
+  .close-btn{
+    width:36px;height:36px;border-radius:11px;border:1px solid var(--glass-border);
+    background:var(--glass-strong);color:var(--text);cursor:pointer;font-size:16px;flex-shrink:0;
+  }
+  .back-btn{font-size:19px;font-weight:800;}
+  .modal-toolbar{display:flex;gap:8px;padding:12px 20px;flex-wrap:wrap;border-bottom:1px solid var(--glass-border);flex-shrink:0;}
+  .modal-body{overflow-y:auto;padding:10px 20px 24px;flex:1;}
+  .mini-btn{
+    background:var(--glass-strong);border:1px solid var(--glass-border);color:var(--text);
+    padding:8px 14px;border-radius:10px;font-size:12.5px;cursor:pointer;
+  }
+  .mini-btn:hover{background:rgba(255,255,255,.22);}
+  .mini-btn.active{background:var(--primary);color:#08101c;font-weight:800;border-color:var(--primary);}
+
+  .theme-name{
+    font-size:17px;font-weight:800;color:var(--text);letter-spacing:.2px;
+    margin:20px 0 10px;padding-inline-start:10px;border-inline-start:4px solid var(--accent);
+    flex:1;min-width:0;
+  }
+  .theme-head{
+    display:flex;align-items:center;gap:10px;margin:22px 0 10px;flex-wrap:wrap;
+    cursor:pointer;user-select:none;padding:6px 8px;margin-inline-start:-8px;border-radius:12px;
+    transition:background .2s;
+  }
+  .theme-head:hover{background:rgba(255,255,255,.05);}
+  .theme-chevron{
+    color:var(--muted);font-size:13px;flex-shrink:0;transition:transform .25s;
+    width:18px;text-align:center;
+  }
+  .theme-head.expanded .theme-chevron{transform:rotate(180deg);color:var(--text);}
+  .theme-chevron.expanded{transform:rotate(180deg);color:var(--text);}
+  .theme-topics{display:none;}
+  .theme-topics.open{display:block;animation:themeOpen .25s ease;}
+  @keyframes themeOpen{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
+  .theme-block{content-visibility:auto;contain-intrinsic-size:1px 60px;}
+  .theme-mini-bar{
+    flex:1;min-width:60px;max-width:110px;height:6px;border-radius:10px;
+    background:rgba(255,255,255,.13);overflow:hidden;
+  }
+  .theme-mini-fill{height:100%;border-radius:10px;background:var(--dc,var(--primary));transition:width .4s;}
+  .theme-mini-badge{
+    font-size:11px;font-weight:800;color:var(--muted);background:rgba(255,255,255,.08);
+    padding:3px 9px;border-radius:20px;flex-shrink:0;
+  }
+  .theme-dash-mini{
+    width:28px;height:28px;border-radius:9px;border:1px solid var(--glass-border);
+    background:rgba(255,255,255,.08);color:var(--text);font-size:13px;cursor:pointer;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;transition:transform .2s, background .2s;
+  }
+  .theme-dash-mini:hover{transform:scale(1.1);background:var(--dc,var(--primary));color:#08101c;}
+  .topic-wrap{border-radius:14px;margin-bottom:4px;}
+  .topic-row{
+    display:flex;align-items:center;gap:10px;padding:11px 10px;border-radius:14px;
+    transition:background .2s;contain:content;
+  }
+  .topic-row:hover{background:rgba(255,255,255,.06);}
+  .topic-row.done{background:rgba(94,234,212,.12);}
+  .topic-row.highlight-flash{animation:jumpFlash 1.8s ease;}
+  @keyframes jumpFlash{
+    0%{background:var(--primary);}
+    100%{background:transparent;}
+  }
+  .topic-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--primary);cursor:pointer;flex-shrink:0;}
+  .topic-row label{flex:1;font-size:14.5px;cursor:pointer;line-height:1.4;}
+  .topic-row.done label{text-decoration:line-through;color:var(--muted);}
+  .topic-row .ctx{font-size:11px;color:var(--muted);display:block;margin-top:1px;}
+  .res-toggle{
+    background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;
+    padding:6px 8px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;gap:4px;
+  }
+  .res-toggle:hover{background:rgba(255,255,255,.1);color:var(--primary);}
+  .res-toggle .count{background:var(--primary);color:#08101c;border-radius:10px;font-size:10px;padding:1px 6px;min-width:16px;text-align:center;font-weight:800;}
+  .res-panel{
+    display:none;margin:4px 8px 12px 30px;padding:12px;border-radius:14px;
+    background:rgba(255,255,255,.05);border:1px dashed var(--glass-border);
+  }
+  .res-panel.open{display:block;}
+  .res-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+  .res-item{
+    display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);
+    border:1px solid var(--glass-border);border-radius:10px;padding:7px 10px;font-size:13px;contain:content;
+  }
+  .res-item .res-icon{flex-shrink:0;font-size:20px;width:26px;text-align:center;display:inline-block;}
+  .res-item .res-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .res-item a{color:var(--primary);text-decoration:none;}
+  .res-item .res-del{background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:14px;flex-shrink:0;}
+  .res-empty{font-size:12.5px;color:var(--muted);margin-bottom:10px;}
+  .res-add-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+  .res-tab{
+    background:rgba(255,255,255,.06);border:1px solid var(--glass-border);color:var(--text);
+    padding:6px 10px;border-radius:9px;font-size:12px;cursor:pointer;
+  }
+  .res-tab.active{background:var(--primary);color:#08101c;border-color:var(--primary);font-weight:700;}
+  .res-form{display:none;gap:6px;}
+  .res-form.active{display:flex;flex-wrap:wrap;}
+  .res-form input[type=text],.res-form input[type=url],.res-form textarea{
+    flex:1;min-width:150px;padding:9px 10px;border-radius:10px;border:1px solid var(--glass-border);
+    background:rgba(255,255,255,.08);color:var(--text);font-size:13px;font-family:inherit;
+  }
+  .res-form textarea{width:100%;min-height:50px;resize:vertical;}
+  .res-form button{
+    background:var(--primary);color:#08101c;border:none;padding:9px 16px;
+    border-radius:10px;font-size:13px;cursor:pointer;font-weight:700;
+  }
+  .res-form input[type=file]{display:block;font-size:12px;color:var(--text);}
+
+  .empty-state{text-align:center;padding:40px 10px;color:var(--muted);font-size:14px;}
+
+  footer{text-align:center;color:var(--muted);font-size:11.5px;padding:26px 16px 10px;}
+
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    padding:11px 22px;font-size:13px;z-index:400;
+    opacity:0;pointer-events:none;transition:opacity .3s, bottom .3s;
+  }
+  .toast.show{opacity:1;bottom:34px;}
+  input[type=file]{display:none;}
+
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:10px;}
+
+  /* ===== stats / heatmap ===== */
+  .stat-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:18px;}
+  .stat-card{padding:14px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid var(--glass-border);text-align:center;}
+  .stat-card .num{font-size:24px;font-weight:900;background:linear-gradient(90deg,var(--primary),var(--primary2));
+    -webkit-background-clip:text;background-clip:text;color:transparent;}
+  .stat-card .lbl{font-size:12px;color:var(--muted);margin-top:4px;font-weight:600;}
+  .heatmap-wrap{overflow-x:auto;padding-bottom:6px;}
+  .heatmap{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,13px);gap:3px;width:max-content;}
+  .hcell{width:13px;height:13px;border-radius:4px;background:rgba(255,255,255,.09);}
+  .hcell[data-lvl="1"]{background:color-mix(in srgb, var(--primary) 30%, transparent);}
+  .hcell[data-lvl="2"]{background:color-mix(in srgb, var(--primary) 55%, transparent);}
+  .hcell[data-lvl="3"]{background:color-mix(in srgb, var(--primary) 78%, transparent);}
+  .hcell[data-lvl="4"]{background:var(--primary);}
+  .heatmap-legend{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:var(--muted);}
+  .heatmap-legend .hcell{width:11px;height:11px;}
+
+  /* ===== settings ===== */
+  .settings-block{margin-bottom:22px;}
+  .settings-block h3{font-size:13px;margin:0 0 10px;color:var(--muted);font-weight:800;}
+  .fs-row{display:flex;align-items:center;gap:10px;}
+  .fs-row button{
+    width:40px;height:40px;border-radius:12px;border:1px solid var(--glass-border);
+    background:rgba(255,255,255,.08);color:var(--text);font-size:16px;cursor:pointer;font-weight:800;
+  }
+  .fs-row .fs-val{flex:1;text-align:center;font-weight:800;font-size:14px;}
+  .swatches{display:flex;gap:10px;flex-wrap:wrap;}
+  .swatch{
+    width:44px;height:44px;border-radius:14px;cursor:pointer;border:2px solid transparent;
+    display:flex;align-items:center;justify-content:center;font-size:16px;
+    transition:transform .2s;
+  }
+  .swatch:hover{transform:scale(1.08);}
+  .swatch.active{border-color:var(--text);}
+  .settings-row{display:flex;gap:8px;flex-wrap:wrap;}
+
+  /* ===== files view ===== */
+  .file-group{margin-bottom:16px;}
+  .file-group h4{font-size:13px;margin:0 0 8px;display:flex;align-items:center;gap:8px;}
+
+  /* ===== content manager ===== */
+  .cm-section{margin-bottom:14px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid var(--glass-border);overflow:hidden;}
+  .cm-section-head{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;}
+  .cm-section-head.hidden-item{opacity:.45;}
+  .cm-section-head .cm-badge{font-size:10px;background:rgba(255,255,255,.1);color:var(--muted);padding:2px 8px;border-radius:10px;flex-shrink:0;}
+  .cm-section-body{display:none;padding:0 14px 14px;}
+  .cm-section-body.open{display:block;}
+  .cm-theme-row{
+    display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;margin-bottom:6px;
+    background:rgba(255,255,255,.04);border:1px solid var(--glass-border);
+  }
+  .cm-theme-row.hidden-item{opacity:.45;}
+  .cm-theme-row .cm-name{flex:1;min-width:0;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .cm-topic-row{
+    display:flex;align-items:center;gap:8px;padding:6px 10px 6px 26px;font-size:12.5px;
+  }
+  .cm-topic-row.hidden-item{opacity:.45;}
+  .cm-topic-row .cm-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .cm-icon-btn{
+    width:26px;height:26px;border-radius:8px;border:1px solid var(--glass-border);background:rgba(255,255,255,.06);
+    color:var(--text);font-size:12px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  }
+  .cm-icon-btn:hover{background:rgba(255,255,255,.15);}
+  .cm-add-form{
+    display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:16px;
+    background:rgba(255,255,255,.05);border:1px dashed var(--glass-border);margin-bottom:14px;
+  }
+  .cm-add-form input[type=text]{
+    padding:10px 12px;border-radius:10px;border:1px solid var(--glass-border);
+    background:rgba(255,255,255,.08);color:var(--text);font-size:13px;font-family:inherit;
+  }
+  .cm-icon-swatches{display:flex;gap:8px;flex-wrap:wrap;}
+  .cm-color-dot{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0;}
+  .cm-color-dot.active{border-color:var(--text);}
+
+  .tile-dash-btn{
+    width:28px;height:28px;border-radius:9px;border:1px solid var(--glass-border);
+    background:rgba(0,0,0,.28);color:#fff;font-size:13px;cursor:pointer;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;opacity:.85;
+    transition:transform .2s, background .2s, opacity .2s;
+  }
+  .tile-dash-btn:hover{opacity:1;transform:scale(1.1);background:rgba(0,0,0,.45);}
+
+  /* ===== Pro Dashboard ===== */
+  .dash-hero{
+    position:relative;border-radius:20px;padding:24px 22px;margin-bottom:18px;overflow:hidden;
+    background:linear-gradient(135deg, var(--dc,var(--primary)) 0%, rgba(0,0,0,.15) 100%);
+    color:#fff;box-shadow:0 12px 30px rgba(0,0,0,.3);
+  }
+  .dash-hero::after{
+    content:'';position:absolute;inset:0;
+    background:radial-gradient(circle at 85% 15%, rgba(255,255,255,.25), transparent 55%);
+    pointer-events:none;
+  }
+  .dash-hero-top{display:flex;align-items:center;gap:16px;position:relative;z-index:1;}
+  .dash-hero-icon{
+    width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,.22);
+    display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;
+    border:1px solid rgba(255,255,255,.35);
+  }
+  .dash-hero-title{font-size:20px;font-weight:900;}
+  .dash-hero-sub{font-size:12.5px;opacity:.9;margin-top:2px;}
+  .dash-ring-big{
+    --p:0; width:96px;height:96px;border-radius:50%;flex-shrink:0;margin-inline-start:auto;
+    background:conic-gradient(#fff calc(var(--p)*3.6deg), rgba(255,255,255,.28) 0deg);
+    display:flex;align-items:center;justify-content:center;position:relative;
+  }
+  .dash-ring-big::after{content:'';position:absolute;inset:8px;border-radius:50%;background:rgba(0,0,0,.28);}
+  .dash-ring-big span{position:relative;z-index:1;font-size:20px;font-weight:900;}
+  .dash-quick{display:flex;gap:10px;margin-top:18px;position:relative;z-index:1;flex-wrap:wrap;}
+  .dash-quick-card{
+    flex:1;min-width:90px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);
+    border-radius:14px;padding:10px 12px;text-align:center;
+  }
+  .dash-quick-card .n{font-size:19px;font-weight:900;}
+  .dash-quick-card .l{font-size:10.5px;opacity:.9;margin-top:2px;}
+
+  .dash-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px;}
+  .dash-stat{
+    background:rgba(255,255,255,.06);border:1px solid var(--glass-border);border-radius:14px;
+    padding:12px 14px;
+  }
+  .dash-stat .n{font-size:18px;font-weight:800;}
+  .dash-stat .l{font-size:11px;color:var(--muted);margin-top:2px;}
+
+  .dash-section-title{font-size:14.5px;font-weight:800;margin:6px 0 12px;display:flex;align-items:center;gap:8px;}
+
+  .theme-table{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;}
+  .theme-row{
+    display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;
+    background:rgba(255,255,255,.05);border:1px solid var(--glass-border);contain:content;
+  }
+  .theme-row .tname{flex:1;min-width:0;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .theme-row .tbar{flex:1;height:7px;border-radius:10px;background:rgba(255,255,255,.13);overflow:hidden;max-width:130px;}
+  .theme-row .tbar-fill{height:100%;border-radius:10px;background:var(--dc,var(--primary));}
+  .theme-row .tcount{font-size:11.5px;color:var(--muted);width:44px;text-align:left;flex-shrink:0;}
+  .theme-row:hover{background:rgba(255,255,255,.09);}
+
+  .recent-table{display:flex;flex-direction:column;gap:6px;}
+  .recent-row{
+    display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;
+    background:rgba(255,255,255,.05);border:1px solid var(--glass-border);font-size:13px;contain:content;
+  }
+  .recent-row .rtitle{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .recent-row .rtheme{font-size:11px;color:var(--muted);}
+  .recent-row .rdate{font-size:11px;color:var(--muted);flex-shrink:0;background:rgba(255,255,255,.08);padding:3px 9px;border-radius:20px;}
+
+  /* ===== theme dashboard: topic chip grid ===== */
+  .chip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:22px;}
+  .topic-chip{
+    position:relative;padding:12px 12px 12px 14px;border-radius:16px;cursor:pointer;
+    background:rgba(255,255,255,.06);border:1px solid var(--glass-border);
+    transition:transform .18s, background .18s, border-color .18s;
+    display:flex;flex-direction:column;gap:8px;min-height:76px;contain:content;
+  }
+  .topic-chip:hover{transform:translateY(-3px);background:rgba(255,255,255,.1);}
+  .topic-chip:active{transform:scale(.97);}
+  .topic-chip.done{
+    background:color-mix(in srgb, var(--dc,var(--primary)) 18%, transparent);
+    border-color:color-mix(in srgb, var(--dc,var(--primary)) 45%, transparent);
+  }
+  .topic-chip .chip-top{display:flex;align-items:center;justify-content:space-between;}
+  .topic-chip .chip-status{
+    width:22px;height:22px;border-radius:50%;border:2px solid var(--muted);
+    display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;color:transparent;
+  }
+  .topic-chip.done .chip-status{
+    background:var(--dc,var(--primary));border-color:var(--dc,var(--primary));color:#08101c;
+  }
+  .topic-chip .chip-res{font-size:10.5px;color:var(--muted);background:rgba(255,255,255,.1);padding:2px 7px;border-radius:10px;}
+  .chip-res-btn{
+    background:rgba(255,255,255,.1);border:1px solid var(--glass-border);color:var(--muted);
+    font-size:12px;padding:3px 8px;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:3px;
+    transition:background .2s, color .2s;
+  }
+  .chip-res-btn:hover{background:var(--primary);color:#08101c;}
+  .chip-res-btn .count{
+    background:var(--primary);color:#08101c;border-radius:8px;font-size:9.5px;padding:0 5px;font-weight:800;
+  }
+  .chip-res-btn:hover .count{background:#08101c;color:var(--primary);}
+  .topic-chip .chip-label{font-size:12.5px;font-weight:700;line-height:1.35;flex:1;}
+  .topic-chip.done .chip-label{color:var(--muted);text-decoration:line-through;}
+
+  @media(max-width:600px){
+    .brand h1{font-size:15px;}
+    .overall-num{font-size:22px;}
+    .grid{grid-template-columns:repeat(2,1fr);}
+  }
+/* ======================================================================
+   VISUAL THEMES (تخصيص المظهر) — pure CSS skins, gated behind body classes.
+   No HTML/JS structure is altered; only appearance changes per theme.
+   ====================================================================== */
+
+/* ---------- 1) Terminal / Matrix (theme-terminal) — radical rebuild ---------- */
+body.theme-terminal{
+  background:#000 !important;
+  font-family:"Courier New",Consolas,monospace !important;
+  color:#22c55e !important;
+}
+body.theme-terminal .bg-blobs{display:none;}
+body.theme-terminal *{font-family:"Courier New",Consolas,monospace !important;border-radius:0 !important;}
+
+/* Every card/box in the app -> flat black, sharp corners, thin green rule */
+body.theme-terminal .glass,
+body.theme-terminal .tile,
+body.theme-terminal .dash-hero,
+body.theme-terminal .dash-quick-card,
+body.theme-terminal .stat-card,
+body.theme-terminal .dash-stat,
+body.theme-terminal .res-item,
+body.theme-terminal .recent-row,
+body.theme-terminal .theme-row,
+body.theme-terminal .cm-section,
+body.theme-terminal .cm-theme-row,
+body.theme-terminal .res-panel,
+body.theme-terminal .topic-chip,
+body.theme-terminal .theme-pick-card,
+body.theme-terminal .res-form input,
+body.theme-terminal .res-form textarea,
+body.theme-terminal .dialogInput,
+body.theme-terminal #dialogInput{
+  background:#000 !important;
+  background-image:none !important;
+  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+  border:1px solid #22c55e !important;
+  box-shadow:none !important;
+  border-radius:0 !important;
+  color:#22c55e !important;
+}
+body.theme-terminal .dash-hero::after{display:none !important;}
+body.theme-terminal .tile::before{display:none;}
+body.theme-terminal .tile:hover{box-shadow:0 0 10px rgba(34,197,94,.5) !important;transform:none !important;}
+body.theme-terminal .tile-title, body.theme-terminal .dash-hero-title,
+body.theme-terminal .modal-title, body.theme-terminal .brand h1,
+body.theme-terminal h1,h2,h3, body.theme-terminal .chip-label,
+body.theme-terminal .overall-top h2, body.theme-terminal .dash-section-title{
+  color:#22c55e !important;text-shadow:0 0 6px rgba(34,197,94,.6);
+}
+body.theme-terminal .tile-sub, body.theme-terminal .muted, body.theme-terminal small,
+body.theme-terminal .modal-sub, body.theme-terminal .dash-hero-sub, body.theme-terminal .stat-card .l,
+body.theme-terminal .dash-stat .l, body.theme-terminal .dash-quick-card .l,
+body.theme-terminal .theme-row .tname, body.theme-terminal .ctx{color:#0d7a37 !important;}
+body.theme-terminal .stat-card .n, body.theme-terminal .dash-stat .n, body.theme-terminal .dash-quick-card .n,
+body.theme-terminal .overall-num, body.theme-terminal .ring span, body.theme-terminal .dash-ring-big span{
+  color:#22c55e !important;-webkit-text-fill-color:#22c55e !important;background:none !important;text-shadow:0 0 6px rgba(34,197,94,.6);
+}
+body.theme-terminal .mini-btn, body.theme-terminal .dock button, body.theme-terminal .close-btn,
+body.theme-terminal .res-tab, body.theme-terminal .cm-icon-btn, body.theme-terminal .chip-res-btn,
+body.theme-terminal .res-toggle, body.theme-terminal .swatch, body.theme-terminal .cm-color-dot{
+  background:#000 !important;border:1px solid #22c55e !important;color:#22c55e !important;border-radius:0 !important;
+}
+body.theme-terminal .mini-btn.active, body.theme-terminal .res-tab.active{background:#22c55e !important;color:#000 !important;}
+body.theme-terminal .track, body.theme-terminal .tile-bar, body.theme-terminal .theme-mini-bar{background:#001a08 !important;border:1px solid #0d7a37;border-radius:0 !important;}
+body.theme-terminal .fill, body.theme-terminal .tile-bar-fill, body.theme-terminal .theme-mini-fill{background:#22c55e !important;box-shadow:0 0 8px #22c55e;}
+body.theme-terminal .fill::after{display:none;}
+body.theme-terminal .ring, body.theme-terminal .dash-ring-big{
+  background:conic-gradient(#22c55e calc(var(--p)*3.6deg), #001a08 0deg) !important;
+  border-radius:0 !important;border:1px solid #22c55e;
+}
+body.theme-terminal .ring::after, body.theme-terminal .dash-ring-big::after{background:#000 !important;border-radius:0 !important;}
+body.theme-terminal .tile-icon, body.theme-terminal .modal-head-left .tile-icon, body.theme-terminal .dash-hero-icon{
+  background:#000 !important;border:1px solid #22c55e !important;border-radius:0 !important;
+}
+/* Checkboxes fully replaced by bracket notation — the box itself disappears */
+body.theme-terminal .topic-row{border:1px solid transparent;border-radius:0 !important;}
+body.theme-terminal .topic-row:hover{border-color:#0d7a37;background:rgba(34,197,94,.06) !important;}
+body.theme-terminal .topic-row.done{background:rgba(34,197,94,.08) !important;}
+body.theme-terminal .topic-row input[type=checkbox]{
+  appearance:none;-webkit-appearance:none;width:0;height:0;opacity:0;position:absolute;
+}
+body.theme-terminal .topic-row label, body.theme-terminal .chip-label{
+  color:#22c55e !important;font-family:"Courier New",Consolas,monospace !important;
+}
+body.theme-terminal .topic-row input:not(:checked) + label::before{content:"[ ] ";color:#0d7a37;font-weight:900;}
+body.theme-terminal .topic-row input:checked + label::before{content:"[DONE] ";color:#22c55e;font-weight:900;}
+body.theme-terminal .topic-row input:checked + label{text-decoration:none !important;}
+body.theme-terminal .chip-status{
+  background:#000 !important;border:1px solid #22c55e !important;border-radius:0 !important;color:transparent !important;
+}
+body.theme-terminal .topic-chip.done{background:rgba(34,197,94,.1) !important;}
+body.theme-terminal .topic-chip.done .chip-status{background:#22c55e !important;color:#000 !important;}
+body.theme-terminal .streak-pill{background:#000 !important;border:1px solid #22c55e !important;color:#22c55e !important;border-radius:0 !important;}
+
+/* ---------- 2) RPG / Gaming (theme-rpg) — radical rebuild ---------- */
+body.theme-rpg{background:#0b0518 !important;font-family:"Segoe UI",Tahoma,sans-serif;}
+body.theme-rpg .bg-blobs{background:radial-gradient(circle at 20% 20%, #2a0e4a, transparent 60%), radial-gradient(circle at 80% 80%, #4a0e3a, transparent 60%), #0b0518 !important;}
+body.theme-rpg .blob1{background:#ff2ec4 !important;} body.theme-rpg .blob2{background:#7b2eff !important;} body.theme-rpg .blob3{background:#2ee4ff !important;}
+
+/* Every card -> dark epic gradient with glowing purple/orange border, none stay glassy-white */
+body.theme-rpg .glass,
+body.theme-rpg .tile,
+body.theme-rpg .dash-quick-card,
+body.theme-rpg .stat-card,
+body.theme-rpg .dash-stat,
+body.theme-rpg .res-item,
+body.theme-rpg .recent-row,
+body.theme-rpg .theme-row,
+body.theme-rpg .cm-section,
+body.theme-rpg .cm-theme-row,
+body.theme-rpg .res-panel,
+body.theme-rpg .topic-chip,
+body.theme-rpg .theme-pick-card,
+body.theme-rpg .res-form input,
+body.theme-rpg .res-form textarea{
+  background:linear-gradient(160deg, rgba(60,20,100,.9), rgba(15,5,30,.95)) !important;
+  background-image:linear-gradient(160deg, rgba(60,20,100,.9), rgba(15,5,30,.95)) !important;
+  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+  border:2px solid #ffcf4d !important;
+  box-shadow:0 0 16px rgba(255,207,77,.3), inset 0 1px 0 rgba(255,255,255,.12) !important;
+  border-radius:16px !important;
+  color:#fdeecb !important;
+}
+body.theme-rpg .dash-hero{
+  background:linear-gradient(160deg, rgba(90,20,140,.95), rgba(20,5,40,.98)) !important;
+  border:2px solid #ffcf4d !important;box-shadow:0 0 24px rgba(255,207,77,.4) !important;
+}
+body.theme-rpg .dash-hero::after{background:radial-gradient(circle at 85% 15%, rgba(255,207,77,.35), transparent 55%) !important;}
+body.theme-rpg .tile::before{background:linear-gradient(135deg, rgba(255,207,77,.25) 0%, transparent 60%) !important;opacity:1 !important;}
+body.theme-rpg .tile:hover{box-shadow:0 0 22px rgba(255,207,77,.55) !important;}
+body.theme-rpg .tile-title, body.theme-rpg .dash-hero-title, body.theme-rpg .modal-title, body.theme-rpg h1,h2,h3,
+body.theme-rpg .chip-label, body.theme-rpg .dash-section-title{
+  color:#ffe89a !important;text-shadow:0 0 8px rgba(255,207,77,.6);font-weight:900;
+}
+body.theme-rpg .tile-sub, body.theme-rpg .modal-sub, body.theme-rpg .dash-hero-sub, body.theme-rpg .ctx,
+body.theme-rpg .stat-card .l, body.theme-rpg .dash-stat .l, body.theme-rpg .dash-quick-card .l{color:#c9a6e0 !important;}
+body.theme-rpg .mini-btn, body.theme-rpg .dock button, body.theme-rpg .close-btn,
+body.theme-rpg .res-tab, body.theme-rpg .cm-icon-btn, body.theme-rpg .chip-res-btn, body.theme-rpg .res-toggle{
+  background:linear-gradient(180deg,#ffdb70,#e8a916) !important;color:#3a1c00 !important;font-weight:900 !important;
+  border:2px solid #7a4a00 !important;border-radius:10px !important;
+  box-shadow:0 3px 0 #7a4a00, 0 4px 8px rgba(0,0,0,.4) !important;
+}
+body.theme-rpg .mini-btn:active, body.theme-rpg .dock button:active{transform:translateY(2px) !important;box-shadow:0 1px 0 #7a4a00 !important;}
+body.theme-rpg .mini-btn.active, body.theme-rpg .res-tab.active{background:linear-gradient(180deg,#ff2ec4,#7b2eff) !important;color:#fff !important;}
+body.theme-rpg .track{background:#1a0e2e !important;border:2px solid #7a4a00;border-radius:20px;}
+body.theme-rpg .fill{background:linear-gradient(90deg,#ffcf4d,#ff9d2e) !important;box-shadow:0 0 10px #ffcf4d;}
+body.theme-rpg .tile-bar-fill, body.theme-rpg .theme-mini-fill{background:linear-gradient(90deg,#ffcf4d,#ff9d2e) !important;}
+body.theme-rpg .streak-pill{
+  background:linear-gradient(180deg,#ff9d2e,#ff5e2e) !important;border:2px solid #7a2a00 !important;color:#fff !important;
+  font-weight:900 !important;box-shadow:0 0 12px rgba(255,110,0,.6);
+}
+/* Circular % rings converted into a horizontal Health/Mana bar */
+body.theme-rpg .ring, body.theme-rpg .dash-ring-big{
+  width:auto !important;min-width:70px;height:16px !important;border-radius:8px !important;
+  background:linear-gradient(90deg, #ff5ec4 calc(var(--p)*1%), #1a0e2e calc(var(--p)*1%)) !important;
+  border:2px solid #7a4a00 !important;box-shadow:0 0 8px rgba(255,94,196,.6);
+  display:flex;align-items:center;justify-content:center;padding:0 6px;
+}
+body.theme-rpg .dash-ring-big{min-width:130px;height:22px !important;}
+body.theme-rpg .ring::after, body.theme-rpg .dash-ring-big::after{display:none !important;}
+body.theme-rpg .ring span, body.theme-rpg .dash-ring-big span{
+  font-size:9px !important;color:#fff !important;text-shadow:0 0 3px #000;font-weight:900;
+}
+body.theme-rpg .topic-row input[type=checkbox]{
+  appearance:none;-webkit-appearance:none;width:20px;height:20px;border:2px solid #ffcf4d;background:#1a0e2e;
+  border-radius:6px;position:relative;
+}
+body.theme-rpg .topic-row input[type=checkbox]:checked{background:#ffcf4d;box-shadow:0 0 10px #ffcf4d;}
+body.theme-rpg .topic-row input[type=checkbox]:checked::after{
+  content:"★";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#3a1c00;font-size:13px;
+}
+body.theme-rpg .topic-row input:checked + label::after, body.theme-rpg .topic-chip.done .chip-label::after{
+  content:" ⚔ QUEST COMPLETE";color:#ffcf4d;font-weight:900;font-size:10.5px;
+  text-shadow:0 0 6px #ffcf4d;animation:xpFly 1.2s ease forwards;display:inline-block;
+}
+@keyframes xpFly{0%{opacity:0;transform:translateY(4px) scale(.8);}30%{opacity:1;transform:translateY(-2px) scale(1.15);}100%{opacity:1;transform:translateY(-4px) scale(1);}}
+body.theme-rpg .topic-row.done{background:rgba(255,207,77,.14) !important;}
+body.theme-rpg .topic-chip.done{background:linear-gradient(160deg, rgba(255,207,77,.25), rgba(60,20,100,.9)) !important;}
+body.theme-rpg .chip-status{background:#1a0e2e !important;border:2px solid #ffcf4d !important;color:transparent !important;}
+body.theme-rpg .topic-chip.done .chip-status{background:#ffcf4d !important;color:#3a1c00 !important;}
+body.theme-rpg .tile-icon, body.theme-rpg .modal-head-left .tile-icon, body.theme-rpg .dash-hero-icon{border:2px solid #ffcf4d !important;}
+
+/* ---------- 3) Classic Notebook (theme-notebook) ---------- */
+body.theme-notebook{
+  background:#f3ecd9 !important;
+  background-image:
+    linear-gradient(rgba(160,170,200,.35) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(160,170,200,.35) 1px, transparent 1px) !important;
+  background-size:26px 26px !important;
+  font-family:"Segoe Print","Comic Sans MS",cursive !important;
+  color:#2b2620 !important;
+}
+body.theme-notebook .bg-blobs{display:none;}
+body.theme-notebook *{font-family:"Segoe Print","Comic Sans MS",cursive !important;}
+
+/* Kill every trace of glass/blur/gradient on every box in this theme */
+body.theme-notebook .glass,
+body.theme-notebook .dash-quick-card,
+body.theme-notebook .stat-card,
+body.theme-notebook .dash-stat,
+body.theme-notebook .res-item,
+body.theme-notebook .recent-row,
+body.theme-notebook .theme-row,
+body.theme-notebook .cm-section,
+body.theme-notebook .cm-theme-row,
+body.theme-notebook .res-panel,
+body.theme-notebook .res-form input,
+body.theme-notebook .res-form textarea{
+  background:#fffdf3 !important;
+  background-image:none !important;
+  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+  border:1px solid #d8cfa8 !important;
+  box-shadow:2px 4px 8px rgba(0,0,0,.1) !important;
+  border-radius:8px !important;
+}
+
+/* The big hero panel (e.g. section dashboards) — no gradient, no shine overlay */
+body.theme-notebook .dash-hero{
+  background:#fde68a !important;
+  background-image:none !important;
+  color:#2b2620 !important;
+  border:1px solid #d8cfa8 !important;
+  box-shadow:2px 4px 8px rgba(0,0,0,.1) !important;
+}
+body.theme-notebook .dash-hero::after{display:none !important;}
+body.theme-notebook .dash-ring-big::after{background:#fde68a !important;}
+body.theme-notebook .dash-quick-card{background:#fffef5 !important;border:1px solid rgba(0,0,0,.12) !important;color:#2b2620 !important;}
+
+/* Main subject cards -> real solid-color sticky notes */
+body.theme-notebook .tile{
+  border-radius:8px !important;transform:rotate(-.6deg);
+  background:#fef08a !important; background-image:none !important;
+  border:1px solid rgba(0,0,0,.08) !important;
+  box-shadow:2px 4px 8px rgba(0,0,0,.1) !important;
+}
+body.theme-notebook .tile:nth-child(2n){transform:rotate(.7deg);background:#fbcfe8 !important;}
+body.theme-notebook .tile:nth-child(3n){transform:rotate(-.3deg);background:#bfdbfe !important;}
+body.theme-notebook .tile:nth-child(4n){transform:rotate(.4deg);background:#bbf7d0 !important;}
+body.theme-notebook .tile:nth-child(5n){transform:rotate(-.5deg);background:#ddd6fe !important;}
+body.theme-notebook .tile:hover{transform:rotate(0deg) translateY(-4px) !important;box-shadow:3px 6px 12px rgba(0,0,0,.16) !important;}
+body.theme-notebook .tile::before{
+  content:'';position:absolute;top:-7px;right:18px;width:15px;height:15px;border-radius:50%;
+  background:#e14b4b;box-shadow:0 2px 3px rgba(0,0,0,.3);opacity:1 !important;z-index:2;
+}
+body.theme-notebook .tile:nth-child(2n)::before{background:#4b7ee1;}
+body.theme-notebook .tile:nth-child(3n)::before{background:#e1c94b;}
+body.theme-notebook .tile-title, body.theme-notebook .modal-title, body.theme-notebook h1,h2,h3,
+body.theme-notebook .dash-hero-title, body.theme-notebook .theme-pick-name{color:#2b2620 !important;}
+
+/* Lesson / topic cards (chip grid — e.g. Cirrhosis, Ascites) -> sticky notes too */
+body.theme-notebook .topic-chip{
+  background:#fef08a !important; background-image:none !important;
+  border:1px solid rgba(0,0,0,.08) !important;
+  box-shadow:2px 4px 8px rgba(0,0,0,.1) !important;
+  border-radius:8px !important;
+}
+body.theme-notebook .chip-grid .topic-chip:nth-child(2n){background:#fbcfe8 !important;}
+body.theme-notebook .chip-grid .topic-chip:nth-child(3n){background:#bfdbfe !important;}
+body.theme-notebook .chip-grid .topic-chip:nth-child(4n){background:#bbf7d0 !important;}
+body.theme-notebook .chip-grid .topic-chip:nth-child(5n){background:#ddd6fe !important;}
+body.theme-notebook .topic-chip .chip-label{color:#2b2620 !important;}
+body.theme-notebook .topic-chip.done .chip-label{
+  text-decoration:line-through !important;
+  text-decoration-color:#22c55e !important;
+  text-decoration-thickness:4px !important;
+  color:#57534e !important;
+}
+body.theme-notebook .topic-chip .chip-status{display:none !important;}
+/* Paperclip: prominent, pinned at the top like it's holding the paper */
+body.theme-notebook .chip-res-btn, body.theme-notebook .res-toggle{
+  background:#fffdf3 !important;border:1px solid #2b2620 !important;color:#2b2620 !important;
+  border-radius:6px !important;transform:rotate(-8deg);box-shadow:1px 2px 3px rgba(0,0,0,.2) !important;
+}
+body.theme-notebook .chip-res-btn:hover{transform:rotate(0deg) scale(1.08);}
+
+/* Topic list rows (list view mode) -> checkbox disappears on completion, marker strikethrough instead */
+body.theme-notebook .topic-row{border-bottom:1px dashed #d8cfa8;border-radius:0 !important;}
+body.theme-notebook .topic-row input[type=checkbox]{
+  appearance:none;-webkit-appearance:none;
+  width:16px;height:16px;border:2px solid #2b2620;border-radius:4px;background:transparent;
+  cursor:pointer;transition:opacity .15s, width .15s, height .15s, margin .15s;
+}
+body.theme-notebook .topic-row input[type=checkbox]:checked{
+  opacity:0;width:0;height:0;margin-inline-end:0;border:none;
+}
+body.theme-notebook .topic-row input:checked + label{
+  text-decoration:line-through !important;
+  text-decoration-color:#22c55e !important;
+  text-decoration-thickness:4px !important;
+  color:#57534e !important;
+}
+body.theme-notebook .topic-row.done{background:rgba(0,0,0,.03) !important;}
+
+body.theme-notebook .mini-btn, body.theme-notebook .dock button, body.theme-notebook .close-btn{
+  background:#fffdf3 !important;background-image:none !important;
+  border:1px solid #2b2620 !important;color:#2b2620 !important;border-radius:8px !important;
+  box-shadow:1px 2px 3px rgba(0,0,0,.15) !important;
+}
+body.theme-notebook .track{background:#e6ddc0 !important;background-image:none !important;}
+body.theme-notebook .fill{background:#e1a94b !important;background-image:none !important;}
+body.theme-notebook .fill::after{display:none;}
+body.theme-notebook .ring, body.theme-notebook .dash-ring-big{
+  background:conic-gradient(#e1a94b calc(var(--p)*3.6deg), #e6ddc0 0deg) !important;
+}
+
+/* ---------- 4) Night Neon / Cyber (theme-neon) — radical rebuild ---------- */
+body.theme-neon{background:#050208 !important;}
+body.theme-neon .bg-blobs{background:#050208 !important;}
+body.theme-neon .blob{opacity:.28;}
+body.theme-neon .blob1{background:#a855f7 !important;} body.theme-neon .blob2{background:#22d3ee !important;} body.theme-neon .blob3{background:#ec4899 !important;}
+
+/* Absolute transparency: every card is just glowing borders over pure black */
+body.theme-neon .glass,
+body.theme-neon .tile,
+body.theme-neon .dash-hero,
+body.theme-neon .dash-quick-card,
+body.theme-neon .stat-card,
+body.theme-neon .dash-stat,
+body.theme-neon .res-item,
+body.theme-neon .recent-row,
+body.theme-neon .theme-row,
+body.theme-neon .cm-section,
+body.theme-neon .cm-theme-row,
+body.theme-neon .res-panel,
+body.theme-neon .topic-chip,
+body.theme-neon .theme-pick-card,
+body.theme-neon .res-form input,
+body.theme-neon .res-form textarea{
+  background:transparent !important;
+  background-color:transparent !important;
+  background-image:none !important;
+  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+  border:1px solid #06b6d4 !important;
+  box-shadow:0 0 10px #06b6d4 !important;
+  color:#e0f7ff !important;
+}
+body.theme-neon .dash-hero{border:1px solid #a855f7 !important;box-shadow:0 0 16px #a855f7 !important;}
+body.theme-neon .dash-hero::after{display:none !important;}
+body.theme-neon .tile:nth-child(2n){border-color:#a855f7 !important;box-shadow:0 0 10px #a855f7 !important;}
+body.theme-neon .tile:nth-child(3n){border-color:#ec4899 !important;box-shadow:0 0 10px #ec4899 !important;}
+body.theme-neon .tile::before{display:none;}
+body.theme-neon .tile:hover{box-shadow:0 0 20px #22d3ee !important;transform:translateY(-4px) !important;}
+body.theme-neon .topic-chip:nth-child(2n){border-color:#a855f7 !important;box-shadow:0 0 8px #a855f7 !important;}
+body.theme-neon .topic-chip:nth-child(3n){border-color:#ec4899 !important;box-shadow:0 0 8px #ec4899 !important;}
+body.theme-neon .tile-title, body.theme-neon .dash-hero-title, body.theme-neon .modal-title,
+body.theme-neon h1,h2,h3, body.theme-neon .chip-label, body.theme-neon .dash-section-title{
+  color:#fff !important;text-shadow:0 0 8px #a855f7, 0 0 16px #22d3ee;
+}
+body.theme-neon .tile-sub, body.theme-neon .modal-sub, body.theme-neon .dash-hero-sub, body.theme-neon .ctx,
+body.theme-neon .stat-card .l, body.theme-neon .dash-stat .l, body.theme-neon .dash-quick-card .l{
+  color:#7dd3fc !important;text-shadow:0 0 4px rgba(34,211,238,.5);
+}
+body.theme-neon .mini-btn, body.theme-neon .dock button, body.theme-neon .close-btn,
+body.theme-neon .res-tab, body.theme-neon .cm-icon-btn, body.theme-neon .chip-res-btn, body.theme-neon .res-toggle{
+  background:transparent !important;border:1px solid #22d3ee !important;color:#22d3ee !important;
+  box-shadow:0 0 8px rgba(34,211,238,.5) !important;text-shadow:0 0 4px #22d3ee;
+}
+body.theme-neon .mini-btn.active, body.theme-neon .res-tab.active{
+  border-color:#a855f7 !important;color:#fff !important;box-shadow:0 0 14px #a855f7 !important;background:rgba(168,85,247,.15) !important;
+}
+body.theme-neon .track{background:transparent !important;border:1px solid rgba(168,85,247,.5);}
+body.theme-neon .fill{background:linear-gradient(90deg,#a855f7,#22d3ee) !important;box-shadow:0 0 14px #a855f7;}
+body.theme-neon .fill::after{display:none;}
+body.theme-neon .ring, body.theme-neon .dash-ring-big{background:conic-gradient(#22d3ee calc(var(--p)*3.6deg), rgba(168,85,247,.15) 0deg) !important;}
+body.theme-neon .ring::after, body.theme-neon .dash-ring-big::after{background:#050208 !important;}
+body.theme-neon .tile-icon, body.theme-neon .modal-head-left .tile-icon, body.theme-neon .dash-hero-icon{
+  background:transparent !important;border:1px solid #22d3ee !important;box-shadow:0 0 8px rgba(34,211,238,.5) !important;
+}
+body.theme-neon .topic-row{border:1px solid transparent;}
+body.theme-neon .topic-row:hover{border-color:rgba(168,85,247,.5);}
+body.theme-neon .topic-row input[type=checkbox]{
+  appearance:none;-webkit-appearance:none;width:19px;height:19px;border:1px solid #22d3ee;background:transparent;
+  border-radius:5px;box-shadow:0 0 6px rgba(34,211,238,.5);position:relative;
+}
+body.theme-neon .topic-row input[type=checkbox]:checked{
+  background:radial-gradient(circle,#a855f7,#22d3ee);box-shadow:0 0 16px #a855f7, 0 0 26px #22d3ee;
+}
+body.theme-neon .topic-row input[type=checkbox]:checked::after{
+  content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;
+  text-shadow:0 0 6px #fff;
+}
+body.theme-neon .topic-row input:checked + label, body.theme-neon .topic-chip.done .chip-label{
+  color:#fff !important;text-shadow:0 0 8px #22d3ee;
+}
+body.theme-neon .topic-row.done{background:rgba(168,85,247,.08) !important;}
+body.theme-neon .chip-status{background:transparent !important;border:1px solid #22d3ee !important;box-shadow:0 0 6px rgba(34,211,238,.5);}
+body.theme-neon .topic-chip.done{background:rgba(168,85,247,.1) !important;}
+body.theme-neon .topic-chip.done .chip-status{background:radial-gradient(circle,#a855f7,#22d3ee) !important;box-shadow:0 0 14px #a855f7;color:#fff !important;}
+body.theme-neon .streak-pill{background:transparent !important;border-color:#ec4899 !important;color:#ec4899 !important;box-shadow:0 0 10px rgba(236,72,153,.5);}
+body.theme-neon .overall-num{-webkit-text-fill-color:#fff !important;background:none !important;color:#fff !important;text-shadow:0 0 10px #a855f7, 0 0 18px #22d3ee;}
+
+/* ---------- 5) Bento Minimalist (theme-bento) — radical rebuild ---------- */
+body.theme-bento{background:#f4f1ea !important;font-family:"Segoe UI",Tahoma,sans-serif !important;color:#141414 !important;}
+body.theme-bento .bg-blobs{display:none;}
+
+/* Every card -> bold thick black border, tiny sharp radius, zero shadow-blur, flat solid color */
+body.theme-bento .glass,
+body.theme-bento .tile,
+body.theme-bento .dash-hero,
+body.theme-bento .dash-quick-card,
+body.theme-bento .stat-card,
+body.theme-bento .dash-stat,
+body.theme-bento .res-item,
+body.theme-bento .recent-row,
+body.theme-bento .theme-row,
+body.theme-bento .cm-section,
+body.theme-bento .cm-theme-row,
+body.theme-bento .res-panel,
+body.theme-bento .topic-chip,
+body.theme-bento .theme-pick-card,
+body.theme-bento .res-form input,
+body.theme-bento .res-form textarea{
+  background:#fff !important;background-image:none !important;
+  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+  border:3px solid #000 !important;box-shadow:none !important;border-radius:4px !important;
+  color:#141414 !important;
+}
+body.theme-bento .dash-hero{background:#ffd93d !important;border:3px solid #000 !important;}
+body.theme-bento .dash-hero::after{display:none !important;}
+body.theme-bento .dash-quick-card{background:#fff !important;}
+body.theme-bento .tile{background:#ffd93d !important;}
+body.theme-bento .tile:nth-child(5n+2){background:#6bd4a3 !important;}
+body.theme-bento .tile:nth-child(5n+3){background:#ff9a6b !important;}
+body.theme-bento .tile:nth-child(5n+4){background:#8fc7ff !important;}
+body.theme-bento .tile:nth-child(5n+5){background:#ff8fd4 !important;}
+body.theme-bento .tile::before{display:none;}
+body.theme-bento .tile:hover{transform:none !important;box-shadow:5px 5px 0 #000 !important;}
+body.theme-bento .topic-chip{background:#fff59d !important;}
+body.theme-bento .chip-grid .topic-chip:nth-child(2n){background:#a7f3d0 !important;}
+body.theme-bento .chip-grid .topic-chip:nth-child(3n){background:#fecaca !important;}
+body.theme-bento .chip-grid .topic-chip:nth-child(4n){background:#bfdbfe !important;}
+body.theme-bento .chip-grid .topic-chip:nth-child(5n){background:#f5d0fe !important;}
+body.theme-bento .tile-title, body.theme-bento h1,h2,h3, body.theme-bento .modal-title,
+body.theme-bento .dash-hero-title, body.theme-bento .chip-label, body.theme-bento .dash-section-title{
+  color:#141414 !important;font-weight:900 !important;
+}
+body.theme-bento .tile-sub, body.theme-bento .modal-sub, body.theme-bento .dash-hero-sub,
+body.theme-bento .ctx{color:#141414 !important;opacity:.75;font-weight:700;}
+body.theme-bento .mini-btn, body.theme-bento .dock button, body.theme-bento .close-btn,
+body.theme-bento .res-tab, body.theme-bento .cm-icon-btn, body.theme-bento .chip-res-btn, body.theme-bento .res-toggle{
+  background:#fff !important;border:3px solid #000 !important;color:#141414 !important;border-radius:4px !important;
+  font-weight:800 !important;box-shadow:none !important;
+}
+body.theme-bento .mini-btn.active, body.theme-bento .res-tab.active{background:#3ecf5f !important;}
+body.theme-bento .mini-btn:hover, body.theme-bento .dock button:hover{transform:translate(-2px,-2px) !important;box-shadow:3px 3px 0 #000 !important;}
+body.theme-bento .track{background:#fff !important;border:3px solid #000;border-radius:6px;}
+body.theme-bento .fill{background:#141414 !important;}
+body.theme-bento .fill::after{display:none;}
+body.theme-bento .ring, body.theme-bento .dash-ring-big{background:conic-gradient(#141414 calc(var(--p)*3.6deg), #fff 0deg) !important;border:3px solid #000;}
+body.theme-bento .ring::after, body.theme-bento .dash-ring-big::after{background:#fff !important;}
+body.theme-bento .tile-icon, body.theme-bento .modal-head-left .tile-icon, body.theme-bento .dash-hero-icon{
+  background:#fff !important;border:3px solid #000 !important;border-radius:4px !important;
+}
+body.theme-bento .topic-row{border:3px solid transparent;border-radius:4px !important;}
+body.theme-bento .topic-row:hover{border-color:#000;}
+body.theme-bento .topic-row input[type=checkbox]{
+  appearance:none;-webkit-appearance:none;width:22px;height:22px;border:3px solid #000;background:#fff;
+  border-radius:4px;position:relative;
+}
+body.theme-bento .topic-row input[type=checkbox]:checked{background:#3ecf5f;}
+body.theme-bento .topic-row input[type=checkbox]:checked::after{
+  content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#000;font-weight:900;font-size:15px;
+}
+body.theme-bento .topic-row.done{background:#d9f9e0 !important;}
+body.theme-bento .chip-status{background:#fff !important;border:3px solid #000 !important;border-radius:4px !important;color:transparent !important;}
+body.theme-bento .topic-chip.done .chip-status{background:#3ecf5f !important;color:#000 !important;}
+body.theme-bento .topic-chip.done{background:#d9f9e0 !important;}
+body.theme-bento .streak-pill{background:#ffd93d !important;border:3px solid #000 !important;color:#141414 !important;box-shadow:none !important;}
+body.theme-bento .overall-num{-webkit-text-fill-color:#141414 !important;background:none !important;color:#141414 !important;}
+
+/* ---------- Theme picker cards in Settings ---------- */
+.theme-pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;}
+.theme-pick-card{
+  border-radius:14px;padding:12px;cursor:pointer;border:2px solid var(--glass-border);
+  background:rgba(255,255,255,.05);text-align:center;transition:transform .2s, border-color .2s;
+}
+.theme-pick-card:hover{transform:translateY(-2px);}
+.theme-pick-card.active{border-color:var(--primary);background:rgba(94,234,212,.1);}
+.theme-pick-swatch{width:100%;height:44px;border-radius:9px;margin-bottom:8px;}
+.theme-pick-name{font-size:11.5px;font-weight:800;}
+</style>
+</head>
+<body data-theme="dark" data-accent="default">
+<div class="bg-blobs">
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+  <div class="blob blob3"></div>
+</div>
+
+<div class="pinned-header">
+<div class="topbar glass">
+  <div class="brand">
+    <div class="mark">Δ</div>
+    <div>
+      <h1>EMLE Study Tracker</h1>
+      <small>لوحة متابعة مذاكرة الامتياز</small>
+    </div>
+  </div>
+  <div class="dock">
+    <button id="statsBtn" title="الإحصائيات">📊<span class="lbl">إحصائيات</span></button>
+    <button id="themesBtn" title="المحاور">🔖<span class="lbl">المحاور</span></button>
+    <button id="pomodoroBtn" title="بومودورو" style="position:relative;">🍅<span class="pomodoro-badge" id="pomodoroBadge"></span></button>
+    <button id="filesBtn" title="ملفاتي">📁<span class="lbl">ملفاتي</span></button>
+    <button id="settingsBtn" title="الإعدادات">⚙️<span class="lbl">إعدادات</span></button>
+  </div>
+</div>
+
+<div class="overall-wrap glass">
+  <div class="overall-top">
+    <h2>التقدم الكلي</h2>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="streak-pill" id="streakPill">🔥 0 يوم</span>
+      <div class="overall-num" id="overallText">0%</div>
+    </div>
+  </div>
+  <div class="track"><div class="fill" id="overallFill" style="width:0%"></div></div>
+  <div class="mini-stats">
+    <span>مكتمل: <b id="doneCount">0</b></span>
+    <span>الإجمالي: <b id="totalCount">0</b></span>
+    <span>المتبقي: <b id="remainingCount">0</b></span>
+  </div>
+</div>
+</div>
+
+<div class="search-wrap glass">
+  <span>🔍</span>
+  <input type="text" id="searchBox" placeholder="ابحث عن موضوع في كل الأقسام...">
+</div>
+
+<main>
+  <div class="sections-header">
+    <h2>Sections</h2>
+    <button id="addSectionHomeBtn" class="mini-btn">➕ إضافة</button>
+  </div>
+  <div class="grid" id="sectionsGrid"></div>
+  <div id="searchResults"></div>
+  <div class="garden-wrap glass" id="gardenWrap">
+    <div class="garden-head">
+      <span>🌷 حديقتي</span>
+      <span class="garden-count" id="gardenCount">0 نبتة</span>
+    </div>
+    <div class="garden-plants" id="gardenPlants"></div>
+  </div>
+</main>
+
+<footer>يعمل بدون إنترنت — تقدمك ومصادرك وإحصائياتك محفوظة محلياً على جهازك 💾</footer>
+
+<!-- Section modal -->
+<div class="overlay" id="overlay">
+  <div class="modal glass" id="modalBox">
+    <div class="modal-head">
+      <button class="close-btn back-btn" id="backModal">→</button>
+      <div class="modal-head-left">
+        <div class="tile-icon" id="modalIcon"></div>
+        <div>
+          <div class="modal-title" id="modalTitle"></div>
+          <div class="modal-sub" id="modalSub"></div>
+        </div>
+      </div>
+      <button class="close-btn" id="closeModal">✕</button>
+    </div>
+    <div class="modal-toolbar">
+      <button class="mini-btn" id="markAllBtn">✔️ تحديد الكل كمكتمل</button>
+      <button class="mini-btn" id="clearAllBtn">↺ إلغاء تحديد الكل</button>
+      <button class="mini-btn" id="sectionIncompleteBtn">📋 غير المكتمل في هذا القسم</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- Generic modal (stats / incomplete / files / settings / dashboards) -->
+<div class="overlay" id="overlay2">
+  <div class="modal glass" id="modalBox2">
+    <div class="modal-head">
+      <button class="close-btn back-btn" id="modal2Back" style="display:none;">→</button>
+      <div class="modal-head-left">
+        <div class="tile-icon" id="modal2Icon"></div>
+        <div>
+          <div class="modal-title" id="modal2Title"></div>
+          <div class="modal-sub" id="modal2Sub"></div>
+        </div>
+      </div>
+      <button class="close-btn" id="closeModal2">✕</button>
+    </div>
+    <div class="modal-body" id="modal2Body"></div>
+  </div>
+</div>
+
+<div class="toast glass" id="toast"></div>
+
+<div class="overlay" id="dialogOverlay">
+  <div class="modal glass" id="dialogBox" style="max-width:420px;">
+    <div class="modal-head">
+      <div class="modal-title" id="dialogTitle" style="font-size:16px;"></div>
+      <button class="close-btn" id="dialogClose">✕</button>
+    </div>
+    <div class="modal-body" id="dialogBody" style="padding-top:16px;">
+      <div id="dialogMessage" style="font-size:13.5px;color:var(--muted);margin-bottom:14px;line-height:1.6;"></div>
+      <input type="text" id="dialogInput" style="width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--glass-border);background:rgba(255,255,255,.08);color:var(--text);font-size:14px;font-family:inherit;margin-bottom:16px;display:none;">
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="mini-btn" id="dialogCancel">إلغاء</button>
+        <button class="mini-btn" id="dialogOk" style="background:var(--primary);color:#08101c;font-weight:800;border-color:var(--primary);">تأكيد</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="resourceOverlay">
+  <div class="modal glass" id="resourceBox" style="max-width:480px;">
+    <div class="modal-head">
+      <div class="modal-head-left">
+        <div class="tile-icon" id="resourceIcon">📎</div>
+        <div>
+          <div class="modal-title" id="resourceTitle" style="font-size:16px;"></div>
+          <div class="modal-sub" id="resourceSub"></div>
+        </div>
+      </div>
+      <button class="close-btn" id="closeResourceModal">✕</button>
+    </div>
+    <div class="modal-body" id="resourceModalBody"></div>
+  </div>
+</div>
+
+<script>
+/* ================= DATA ================= */
+const BUILTIN_DATA = [
+  {
+    id:"im", title:"Internal Medicine", icon:"🫀", color:"#5eead4",
+    themes:[
+      {name:"1. Cardiology", topics:["Principles of coronary artery disease","Congestive heart failure","Overview of cardiac arrhythmias (Cardiac arrhythmias)","ECG","Atrial fibrillation","Syncope","Hypertension","Rheumatic fever","Peripheral arterial disease"]},
+      {name:"2. Pulmonology", topics:["Asthma","Chronic obstructive pulmonary disease","Tuberculosis","Hypersensitivity and anaphylactic reactions","Hypersensitivity pneumonitis"]},
+      {name:"3. Gastroenterology", topics:["Nausea & vomiting","Gastrointestinal bleeding","Gastroesophageal reflux disease (GERD)","Crohn disease","Irritable bowel syndrome","Lactose intolerance","Acute pancreatitis","Chronic pancreatitis","Pancreatic Carcinoma","Peritonitis"]},
+      {name:"4. Hepatology", topics:["Jaundice and cholestasis","Cirrhosis","Portal hypertension","Ascites","Hepatocellular carcinoma","Hepatitis A","Hepatitis B","Hepatitis C","Autoimmune hepatitis"]},
+      {name:"5. Nephrology", topics:["Chronic kidney disease","Nephrotic syndrome","Nephritic syndrome","Sodium disorders","Disorders of potassium balance","Disorders of calcium balance","Diabetes insipidus"]},
+      {name:"6. Endocrinology", topics:["Osteomalacia and rickets","Paget disease of bone","Hyperthyroidism","Hypothyroidism","Hyperparathyroidism","Hypoparathyroidism","Diabetes mellitus","Hyperglycemic crises","Hypoglycemia","Metabolic syndrome"]},
+      {name:"7. Rheumatology and Immunology", topics:["Fever and inflammation","Rheumatoid arthritis","Systemic lupus erythematosus (SLE)","Gout and hyperuricemia","Fibromyalgia"]},
+      {name:"8. Hematology", topics:["Lymphadenopathy","Splenomegaly","Anemia","Iron deficiency anemia","Hemolytic anemia","Glucose-6-phosphate dehydrogenase deficiency","Folate deficiency (Vitamin B9 deficiency)","Hemostasis and bleeding disorders","Thrombocytopenia"]},
+      {name:"9. Infectious Diseases", topics:["Vaccination","Immunization schedule","Influenza","Shock","Herpes virus infections","Sexually transmitted infections","Legionellosis","Typhoid fever, Paratyphoid fever","Brucellosis","Leishmaniasis","Helminth infections","Chagas disease","Echinococcosis","Diarrhea"]},
+      {name:"10. Neurology", topics:["Headache","Migraine","Tension headaches","Trigeminal neuralgia","Facial nerve palsy/Bell palsy","Meningitis","Peripheral nerve injuries","Seizure disorders (Epilepsy)","Stroke","Cerebral venous thrombosis"]},
+      {name:"11. Dermatology", topics:["Benign skin lesions","Collection of dermatological disorders","Impetigo"]},
+      {name:"12. Pharmacology", topics:["Poisoning","Metal toxicity","Organic solvent toxicity"]},
+      {name:"13. Medical Law, Ethics, Epidemiology and Public Health", topics:["Principles of medical law and ethics","Child maltreatment","Quality and Safety","Epidemiology","Health care system","Preventative medicine"]}
+    ]
+  },
+  {
+    id:"peds", title:"Pediatrics", icon:"🧸", color:"#ffb648",
+    themes:[
+      {name:"1. Neonatology and Child Development", topics:["The newborn infant","Birth traumas","Neonatal respiratory distress syndrome","Teratogenic birth defects","Sudden infant death syndrome","Hypertensive pregnancy disorders","Child development and milestones","Vaccination"]},
+      {name:"2. Cardiology", topics:["Acyanotic congenital heart defects","Cyanotic congenital heart defects"]},
+      {name:"3. Pulmonology", topics:["Bronchiolitis","Croup","Epiglottitis","Pertussis","Food allergies"]},
+      {name:"4. Gastroenterology", topics:["Esophageal atresia","Duodenal atresia and stenosis","Hypertrophic pyloric stenosis","Intussusception","Acute appendicitis"]},
+      {name:"5. Nephrology", topics:["Elimination disorders"]},
+      {name:"6. Endocrinology and Growth", topics:["Puberty","Tall stature and abnormally rapid growth","Short stature"]},
+      {name:"7. Rheumatology and Musculoskeletal", topics:["Osteomalacia and rickets","Juvenile idiopathic arthritis","Developmental dysplasia of the hip"]},
+      {name:"8. Infectious Diseases", topics:["Fifth disease (Erythema infectiosum)","Measles","Mumps","Scarlet fever (Second disease)","Chickenpox","Atopic dermatitis"]},
+      {name:"9. Neurology", topics:["Generalized epilepsy in childhood","Febrile seizures (Febrile seizure)","Short stature"]},
+      {name:"10. Critical Care", topics:["Foreign body aspiration (FBA)"]},
+      {name:"11. Congenital and Inherited Disorders", topics:["Rare inherited syndromes","Down syndrome (Trisomy 21)","Congenital immunodeficiency disorders","Inborn errors of metabolism"]}
+    ]
+  },
+  {
+    id:"obgyn", title:"Obstetrics & Gynecology", icon:"🤰", color:"#c084fc",
+    themes:[
+      {name:"Menopause, urogynaecology and prolapse", topics:["Diagnostic procedures in gynecology","Menopause","Urinary incontinence","Urinary tract infections"]},
+      {name:"Oncology and gynaecological surgery", topics:["Cervical cancer (Cervical carcinoma)","Vulvar and vaginal cancer","Ovarian tumors"]},
+      {name:"Menstrual cycle, puberty and hormones", topics:["Menstrual cycle and menstrual cycle abnormalities"]},
+      {name:"Vaginal bleeding", topics:["Endometriosis","Endometrial cancer","Uterine leiomyoma (Fibroids)","Polycystic ovary syndrome (PCOS)","Pregnancy loss","Ectopic pregnancy","Sexually transmitted infections"]},
+      {name:"Contraception, preconception and infertility", topics:["Infertility","Nonhormonal contraception","Hormonal contraceptives","Prenatal care","Pregnancy","Hypertensive pregnancy disorders"]},
+      {name:"Labour and birthing", topics:["Childbirth","Mechanics of childbirth","Uterine rupture","Preterm labor and birth"]},
+      {name:"Obstetric emergencies", topics:["Birth traumas","Postpartum hemorrhage","Antepartum hemorrhage"]},
+      {name:"Puerperium", topics:["Postpartum period"]}
+    ]
+  },
+  {
+    id:"surg", title:"Surgery", icon:"🔪", color:"#4ade80",
+    themes:[
+      {name:"1. Principles of Surgery, Trauma and Anesthesia", topics:["Cardiopulmonary resuscitation (CPR)","Shock","Management of trauma patients","Blunt trauma","Penetrating trauma","Rhabdomyolysis and crush syndrome","Transfusion","Acute limb ischemia"]},
+      {name:"2. Cardiothoracic and Vascular Surgery", topics:["Acute limb ischemia","Deep venous thrombosis"]},
+      {name:"3. Gastrointestinal Surgery", topics:["Acute abdomen","Boerhaave syndrome","Peritonitis","Esophageal cancer","Gastric cancer","Constipation","Biliary cancer","Hepatocellular carcinoma","Acute appendicitis","Colorectal cancer","Carcinoid tumor","Bowel surgery","Abdominal hernias","Femoral hernia","Internal hernia","Hiatal hernia","Intestinal ischemia","Anal fissures","Anal abscess and fistula","Anal cancer","Cholelithiasis, choledocholithiasis, cholecystitis, and cholangitis"]},
+      {name:"4. Urology", topics:["Diagnostic evaluation of the kidney and urinary tract","Urinary tract infections","Urethritis","Urinary retention","Urinary incontinence","Erection and ejaculation disorders","Scrotal abnormalities","Testicular tumors","Carcinoma of the penis","Testicular torsion"]},
+      {name:"5. Orthopedic Surgery", topics:["General principles of fractures","Conservative treatment of fractures (Conservative fracture management)","Degenerative disc disease","Foot deformities"]},
+      {name:"6. Dermatology", topics:["Wound treatment","Burns"]},
+      {name:"7. Ear, Nose and Throat, and Head and Neck Surgery", topics:["Hearing loss","Acute otitis media (Middle ear infection)","Chronic otitis media","Ménière disease","Benign paroxysmal positional vertigo","Epistaxis","Acute tonsillitis","Deep neck infections","Congenital neck masses"]},
+      {name:"8. Ophthalmology", topics:["Traumatic eye injuries","Conjunctivitis","Disorders of the visual pathway"]}
+    ]
+  },
+  {
+    id:"psych", title:"Psychiatry", icon:"🧠", color:"#60a5fa",
+    themes:[
+      {name:"Neurodevelopmental disorders", topics:["Autism spectrum disorder","Emotional and behavioral disorders in children and adolescents","Attention deficit hyperactivity disorder"]},
+      {name:"Personality disorders", topics:["Personality disorders","Disruptive, impulse-control, and conduct disorders"]},
+      {name:"Trauma- and stressor-related disorders", topics:["Trauma- and stressor-related disorders"]}
+    ]
+  }
+];
+
+/* ================= CONTENT MANAGEMENT (user-added sections/themes/topics) ================= */
+const CONTENT_KEY = "emle_content_v1";
+const VIEW_MODE_KEY = "emle_view_mode";
+function getViewMode(){ return localStorage.getItem(VIEW_MODE_KEY) || "dashboard"; }
+function setViewMode(v){ localStorage.setItem(VIEW_MODE_KEY, v); }
+
+/* ---- Visual Themes (تخصيص المظهر) — pure CSS skins via body classes ---- */
+const VISUAL_THEME_KEY = "emle_visual_theme";
+const VISUAL_THEMES = [
+  {id:"default",  name:"الافتراضي (Glassmorphism)", swatch:"linear-gradient(135deg,#5eead4,#7c9bff)"},
+  {id:"terminal", name:"الماتريكس (Terminal)",       swatch:"linear-gradient(135deg,#000000,#39ff6a)"},
+  {id:"rpg",      name:"الألعاب (RPG Dashboard)",    swatch:"linear-gradient(135deg,#2a0e4a,#ffcf4d)"},
+  {id:"notebook", name:"الورق الكلاسيكي",            swatch:"linear-gradient(135deg,#f3ecd9,#e1a94b)"},
+  {id:"neon",     name:"النيون الليلي (Cyber)",       swatch:"linear-gradient(135deg,#a855f7,#22d3ee)"},
+  {id:"bento",    name:"Bento Minimalist",           swatch:"linear-gradient(135deg,#ffd93d,#8fc7ff)"}
+];
+function getVisualTheme(){ return localStorage.getItem(VISUAL_THEME_KEY) || "default"; }
+function setVisualTheme(id){
+  VISUAL_THEMES.forEach(t=> document.body.classList.remove("theme-"+t.id));
+  if(id !== "default") document.body.classList.add("theme-"+id);
+  localStorage.setItem(VISUAL_THEME_KEY, id);
+}
+function loadContent(){
+  const raw = JSON.parse(localStorage.getItem(CONTENT_KEY) || "{}");
+  return {
+    customSections: raw.customSections || [],
+    addedThemes: raw.addedThemes || {},   // { sectionId: [{name, topics:[...]}, ...] }
+    addedTopics: raw.addedTopics || {},   // { "sectionId__ti": ["topic text", ...] }
+    renamedThemes: raw.renamedThemes || {}, // { "sectionId__ti": "new name" }
+    renamedTopics: raw.renamedTopics || {}, // { "sectionId__ti__pi": "new text" }
+    hiddenThemes: raw.hiddenThemes || {},   // { "sectionId__ti": true }
+    hiddenTopics: raw.hiddenTopics || {},   // { "sectionId__ti__pi": true }
+    hiddenSections: raw.hiddenSections || {} // { sectionId: true }
+  };
+}
+let content = loadContent();
+function saveContent(){ localStorage.setItem(CONTENT_KEY, JSON.stringify(content)); }
+
+function isThemeHidden(sid, ti){ return !!content.hiddenThemes[sid+"__"+ti]; }
+function isTopicHidden(sid, ti, pi){ return !!content.hiddenTopics[sid+"__"+ti+"__"+pi]; }
+function isSectionHidden(sid){ return !!content.hiddenSections[sid]; }
+
+let DATA = [];
+let DATA_ALL = []; // includes hidden sections too, used by the Content Manager
+function rebuildData(){
+  const clone = JSON.parse(JSON.stringify(BUILTIN_DATA));
+  const all = clone.concat(JSON.parse(JSON.stringify(content.customSections)));
+  all.forEach(section=>{
+    // append extra themes
+    const extraThemes = content.addedThemes[section.id] || [];
+    extraThemes.forEach(t=> section.themes.push({name:t.name, topics:(t.topics||[]).slice()}));
+    // rename themes + append extra topics + rename topics
+    section.themes.forEach((theme, ti)=>{
+      const themeKey = section.id+"__"+ti;
+      if(content.renamedThemes[themeKey]) theme.name = content.renamedThemes[themeKey];
+      const extraTopics = content.addedTopics[themeKey] || [];
+      extraTopics.forEach(tp=> theme.topics.push(tp));
+      theme.topics.forEach((tp, pi)=>{
+        const topicKeyStr = section.id+"__"+ti+"__"+pi;
+        if(content.renamedTopics[topicKeyStr]) theme.topics[pi] = content.renamedTopics[topicKeyStr];
+      });
+    });
+  });
+  DATA_ALL = all;
+  DATA = all.filter(s=> !isSectionHidden(s.id));
+}
+rebuildData();
+
+/* ---- CRUD helpers (all index-safe: additions only append, deletions are soft-hidden) ---- */
+function addCustomSection(title, icon, color){
+  const id = "custom_" + genId();
+  content.customSections.push({id, title, icon, color, themes:[]});
+  saveContent(); rebuildData();
+  return id;
+}
+function addThemeToSection(sectionId, name){
+  if(!content.addedThemes[sectionId]) content.addedThemes[sectionId] = [];
+  content.addedThemes[sectionId].push({name, topics:[]});
+  saveContent(); rebuildData();
+}
+function addTopicToTheme(sectionId, ti, text){
+  const k = sectionId+"__"+ti;
+  if(!content.addedTopics[k]) content.addedTopics[k] = [];
+  content.addedTopics[k].push(text);
+  saveContent(); rebuildData();
+}
+function renameTheme(sectionId, ti, newName){
+  content.renamedThemes[sectionId+"__"+ti] = newName;
+  saveContent(); rebuildData();
+}
+function renameTopic(sectionId, ti, pi, newText){
+  content.renamedTopics[sectionId+"__"+ti+"__"+pi] = newText;
+  saveContent(); rebuildData();
+}
+function hideTheme(sectionId, ti){
+  content.hiddenThemes[sectionId+"__"+ti] = true;
+  saveContent(); rebuildData();
+}
+function hideTopic(sectionId, ti, pi){
+  content.hiddenTopics[sectionId+"__"+ti+"__"+pi] = true;
+  saveContent(); rebuildData();
+}
+function unhideTheme(sectionId, ti){
+  delete content.hiddenThemes[sectionId+"__"+ti];
+  saveContent(); rebuildData();
+}
+function unhideTopic(sectionId, ti, pi){
+  delete content.hiddenTopics[sectionId+"__"+ti+"__"+pi];
+  saveContent(); rebuildData();
+}
+function hideSection(sectionId){
+  content.hiddenSections[sectionId] = true;
+  saveContent(); rebuildData();
+}
+function unhideSection(sectionId){
+  delete content.hiddenSections[sectionId];
+  saveContent(); rebuildData();
+}
+
+/* ================= STATE ================= */
+const STORAGE_KEY = "emle_progress_v1";
+const RES_KEY = "emle_resources_v1";
+const THEME_KEY = "emle_theme";
+const ACCENT_KEY = "emle_accent";
+const ACTIVITY_KEY = "emle_activity_v1";
+const FS_KEY = "emle_fontscale";
+
+let progress = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+let resources = JSON.parse(localStorage.getItem(RES_KEY) || "{}");
+let activity = JSON.parse(localStorage.getItem(ACTIVITY_KEY) || "{}"); // {"YYYY-MM-DD": count}
+let currentSectionId = null;
+
+function saveProgress(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+  updateOverallProgress();
+}
+function saveResources(){ localStorage.setItem(RES_KEY, JSON.stringify(resources)); }
+function saveActivity(){ localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activity)); }
+function topicKey(sectionId, themeIdx, topicIdx){ return sectionId + "__" + themeIdx + "__" + topicIdx; }
+function todayStr(d=new Date()){ return d.toISOString().slice(0,10); }
+function logActivity(){
+  const t = todayStr();
+  activity[t] = (activity[t]||0) + 1;
+  saveActivity();
+  updateStreakPill();
+  refreshLiveViews();
+}
+function unlogActivity(ts){
+  if(typeof ts !== "number") return;
+  const t = todayStr(new Date(ts));
+  if(activity[t]){
+    activity[t]--;
+    if(activity[t]<=0) delete activity[t];
+    saveActivity();
+    updateStreakPill();
+  }
+  refreshLiveViews();
+}
+/* Keep any currently-open generic modal (stats, incomplete, dashboards) in sync
+   immediately after a data change, without requiring the user to reopen it. */
+function refreshLiveViews(){
+  if(!overlay2.classList.contains("open")) return;
+  const title = document.getElementById("modal2Title").textContent;
+  if(title.includes("إحصائيات")) renderStatsView(modal2Body);
+}
+
+/* ---- IndexedDB for file attachments (with safe fallback) ---- */
+let dbPromise = new Promise((resolve,reject)=>{
+  try{
+    if(!window.indexedDB){ reject(new Error("IndexedDB غير مدعوم")); return; }
+    const req = indexedDB.open("emle_files_db", 1);
+    req.onupgradeneeded = (e)=>{ e.target.result.createObjectStore("files"); };
+    req.onsuccess = (e)=> resolve(e.target.result);
+    req.onerror = (e)=> reject(e.target ? e.target.error : e);
+    req.onblocked = ()=> reject(new Error("قاعدة البيانات محجوبة"));
+  }catch(err){ reject(err); }
+});
+async function saveFileBlob(id, blob){
+  const db = await dbPromise;
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction("files","readwrite");
+    tx.objectStore("files").put(blob, id);
+    tx.oncomplete = ()=>resolve();
+    tx.onerror = (e)=>reject(e);
+  });
+}
+async function getFileBlob(id){
+  const db = await dbPromise;
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction("files","readonly");
+    const req = tx.objectStore("files").get(id);
+    req.onsuccess = ()=>resolve(req.result);
+    req.onerror = (e)=>reject(e);
+  });
+}
+async function deleteFileBlob(id){
+  const db = await dbPromise;
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction("files","readwrite");
+    tx.objectStore("files").delete(id);
+    tx.oncomplete = ()=>resolve();
+    tx.onerror = (e)=>reject(e);
+  });
+}
+function genId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+
+/* Try IndexedDB first; if it fails for any reason, fall back to storing the
+   file inline as base64 (works everywhere, capped to keep localStorage sane). */
+async function storeFile(file){
+  const id = genId();
+  try{
+    await saveFileBlob(id, file);
+    return {id, inline:false};
+  }catch(err){
+    if(file.size > 40*1024*1024){
+      throw new Error("الملف كبير جداً (الحد الأقصى 40MB)");
+    }
+    const dataUrl = await new Promise((resolve,reject)=>{
+      const r = new FileReader();
+      r.onload = ()=>resolve(r.result);
+      r.onerror = ()=>reject(new Error("تعذرت قراءة الملف"));
+      r.readAsDataURL(file);
+    });
+    return {id, inline:true, dataUrl};
+  }
+}
+async function openFileItem(item){
+  if(item.dataUrl){
+    window.open(item.dataUrl, "_blank");
+    return;
+  }
+  try{
+    const blob = await getFileBlob(item.id);
+    if(!blob){ showToast("الملف غير موجود"); return; }
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(()=>URL.revokeObjectURL(url), 60000);
+  }catch(err){
+    showToast("تعذر فتح الملف");
+  }
+}
+
+/* ================= COUNTING ================= */
+function countTotals(section){
+  let total=0, done=0;
+  section.themes.forEach((th, ti)=>{
+    if(isThemeHidden(section.id, ti)) return;
+    th.topics.forEach((tp, pi)=>{
+      if(isTopicHidden(section.id, ti, pi)) return;
+      total++;
+      if(progress[topicKey(section.id, ti, pi)]) done++;
+    });
+  });
+  return {total, done};
+}
+
+/* ---- Extra analytics used by the Pro Dashboard ---- */
+function sectionResourceCount(section){
+  let n = 0;
+  section.themes.forEach((th, ti)=>{
+    if(isThemeHidden(section.id, ti)) return;
+    th.topics.forEach((tp, pi)=>{
+      if(isTopicHidden(section.id, ti, pi)) return;
+      n += (resources[topicKey(section.id, ti, pi)] || []).length;
+    });
+  });
+  return n;
+}
+function sectionLastStudied(section){
+  let last = 0;
+  section.themes.forEach((th, ti)=>{
+    if(isThemeHidden(section.id, ti)) return;
+    th.topics.forEach((tp, pi)=>{
+      if(isTopicHidden(section.id, ti, pi)) return;
+      const v = progress[topicKey(section.id, ti, pi)];
+      if(typeof v === "number" && v > last) last = v;
+    });
+  });
+  return last;
+}
+function sectionRecentCompletions(section, limit=6){
+  const rows = [];
+  section.themes.forEach((th, ti)=>{
+    if(isThemeHidden(section.id, ti)) return;
+    th.topics.forEach((tp, pi)=>{
+      if(isTopicHidden(section.id, ti, pi)) return;
+      const v = progress[topicKey(section.id, ti, pi)];
+      if(typeof v === "number") rows.push({tp, themeName:th.name, ts:v});
+    });
+  });
+  rows.sort((a,b)=> b.ts - a.ts);
+  return rows.slice(0, limit);
+}
+function formatRelativeDate(ts){
+  if(!ts) return "—";
+  const diffMs = Date.now() - ts;
+  const days = Math.floor(diffMs / 86400000);
+  if(days<=0) return "اليوم";
+  if(days===1) return "أمس";
+  if(days<7) return `منذ ${days} أيام`;
+  const d = new Date(ts);
+  return d.toLocaleDateString("ar-EG", {day:"numeric", month:"short"});
+}
+function themeStats(section, ti){
+  const theme = section.themes[ti];
+  let done=0, resCount=0, lastTs=0;
+  const topics = theme.topics
+    .map((tp,pi)=>({tp,pi}))
+    .filter(o=> !isTopicHidden(section.id, ti, o.pi))
+    .map(({tp,pi})=>{
+      const key = topicKey(section.id, ti, pi);
+      const v = progress[key];
+      const isDone = !!v;
+      if(isDone) done++;
+      if(typeof v === "number" && v > lastTs) lastTs = v;
+      const rc = (resources[key]||[]).length;
+      resCount += rc;
+      return {tp, pi, key, isDone, resCount:rc};
+    });
+  return {theme, topics, total: topics.length, done, resCount, lastTs};
+}
+
+function updateOverallProgress(){
+  let total=0, done=0;
+  DATA.forEach(section=>{
+    const c = countTotals(section);
+    total += c.total; done += c.done;
+  });
+  const percent = total? Math.round((done/total)*100) : 0;
+  document.getElementById("overallFill").style.width = percent+"%";
+  document.getElementById("overallText").textContent = percent+"%";
+  document.getElementById("doneCount").textContent = done;
+  document.getElementById("totalCount").textContent = total;
+  document.getElementById("remainingCount").textContent = total-done;
+  renderGrid();
+}
+
+/* ================= STREAK / STATS ================= */
+function computeStreak(){
+  let streak = 0;
+  let d = new Date();
+  // if today has no activity yet, start counting from yesterday
+  if(!activity[todayStr(d)]) d.setDate(d.getDate()-1);
+  while(activity[todayStr(d)]){
+    streak++;
+    d.setDate(d.getDate()-1);
+  }
+  return streak;
+}
+function sumLastNDays(n){
+  let sum = 0;
+  const d = new Date();
+  for(let i=0;i<n;i++){
+    sum += activity[todayStr(d)] || 0;
+    d.setDate(d.getDate()-1);
+  }
+  return sum;
+}
+function sumThisMonth(){
+  const now = new Date();
+  let sum = 0;
+  Object.keys(activity).forEach(dateStr=>{
+    const dt = new Date(dateStr);
+    if(dt.getFullYear()===now.getFullYear() && dt.getMonth()===now.getMonth()) sum += activity[dateStr];
+  });
+  return sum;
+}
+function updateStreakPill(){
+  const s = computeStreak();
+  document.getElementById("streakPill").textContent = `🔥 ${s} يوم`;
+}
+
+/* ================= GRID RENDER ================= */
+const gridEl = document.getElementById("sectionsGrid");
+function renderGrid(){
+  gridEl.innerHTML = "";
+  DATA.forEach(section=>{
+    const {total, done} = countTotals(section);
+    const percent = total? Math.round((done/total)*100) : 0;
+    const tile = document.createElement("div");
+    tile.className = "tile glass";
+    tile.style.setProperty("--tc", section.color);
+    tile.innerHTML = `
+      <div class="tile-top">
+        <div class="tile-icon">${section.icon}</div>
+        <button class="tile-dash-btn" id="tdb-${section.id}" title="لوحة تفصيلية">📈</button>
+      </div>
+      <div>
+        <div class="tile-title-row">
+          <div class="tile-title">${section.title}</div>
+          <div class="ring" style="--p:${percent}"><span>${percent}%</span></div>
+        </div>
+        <div class="tile-sub">${done} / ${total} مكتمل</div>
+        <div class="tile-bar"><div class="tile-bar-fill" style="width:${percent}%"></div></div>
+      </div>
+    `;
+    const altBtn = tile.querySelector(".tile-dash-btn");
+    if(getViewMode()==="list"){
+      altBtn.textContent = "📈"; altBtn.title = "لوحة تفصيلية";
+    } else {
+      altBtn.textContent = "📋"; altBtn.title = "القائمة الكاملة";
+    }
+    tile.addEventListener("click", ()=>{
+      if(getViewMode()==="list") openModal(section.id);
+      else openSectionDashboard(section.id);
+    });
+    altBtn.addEventListener("click",(e)=>{
+      e.stopPropagation();
+      if(getViewMode()==="list") openSectionDashboard(section.id);
+      else openModal(section.id);
+    });
+    gridEl.appendChild(tile);
+  });
+}
+
+/* ================= SECTION MODAL ================= */
+const overlay = document.getElementById("overlay");
+const modalBody = document.getElementById("modalBody");
+
+function openModal(sectionId, filter="", highlightTi=null, highlightPi=null){
+  const section = DATA.find(s=>s.id===sectionId);
+  if(!section) return;
+  currentSectionId = sectionId;
+  const {total, done} = countTotals(section);
+  document.getElementById("modalIcon").textContent = section.icon;
+  document.getElementById("modalIcon").style.background = section.color+"33";
+  document.getElementById("modalTitle").textContent = section.title;
+  document.getElementById("modalSub").textContent = `${done} / ${total} مكتمل`;
+  renderModalBody(section, filter, highlightTi, highlightPi);
+  overlay.classList.add("open");
+}
+function closeModal(){ overlay.classList.remove("open"); currentSectionId = null; }
+document.getElementById("closeModal").addEventListener("click", closeModal);
+document.getElementById("backModal").addEventListener("click", closeModal);
+overlay.addEventListener("click",(e)=>{ if(e.target===overlay) closeModal(); });
+
+function renderModalBody(section, filter="", highlightTi=null, highlightPi=null){
+  modalBody.innerHTML = "";
+  let anyVisible = false;
+
+  section.themes.forEach((theme, ti)=>{
+    if(isThemeHidden(section.id, ti)) return;
+    const filtered = theme.topics
+      .map((tp,pi)=>({tp,pi}))
+      .filter(o=> !isTopicHidden(section.id, ti, o.pi))
+      .filter(o=> o.tp.toLowerCase().includes(filter.toLowerCase()));
+    if(filter && filtered.length===0) return;
+    anyVisible = true;
+
+    const themeBlock = document.createElement("div");
+    themeBlock.className = "theme-block";
+    const ts = themeStats(section, ti);
+    const themePct = ts.total? Math.round(ts.done/ts.total*100):0;
+    const themeHead = document.createElement("div");
+    themeHead.className = "theme-head";
+    themeHead.style.setProperty("--dc", section.color);
+    themeHead.innerHTML = `
+      <span class="theme-chevron">▾</span>
+      <div class="theme-name" style="margin:0;border-inline-start:4px solid var(--accent);">${theme.name}</div>
+      <div class="theme-mini-bar"><div class="theme-mini-fill" style="width:${themePct}%"></div></div>
+      <span class="theme-mini-badge">${ts.done}/${ts.total}</span>
+      <button class="theme-dash-mini" title="لوحة هذا المحور">📊</button>
+    `;
+    themeBlock.appendChild(themeHead);
+
+    const topicsWrap = document.createElement("div");
+    topicsWrap.className = "theme-topics";
+    const isOpen = !!filter || (highlightTi !== null && ti === highlightTi);
+    if(isOpen){ themeHead.classList.add("expanded"); topicsWrap.classList.add("open"); }
+
+    themeHead.addEventListener("click", (e)=>{
+      if(e.target.closest(".theme-dash-mini")) return;
+      themeHead.classList.toggle("expanded");
+      topicsWrap.classList.toggle("open");
+    });
+    themeHead.querySelector(".theme-dash-mini").addEventListener("click", (e)=>{
+      e.stopPropagation();
+      openThemeDashboard(section.id, ti);
+    });
+
+    const list = filter ? filtered : theme.topics.map((tp,pi)=>({tp,pi})).filter(o=> !isTopicHidden(section.id, ti, o.pi));
+
+    list.forEach(({tp,pi})=>{
+      const key = topicKey(section.id, ti, pi);
+      const isDone = !!progress[key];
+      const resCount = (resources[key]||[]).length;
+
+      const wrap = document.createElement("div");
+      wrap.className = "topic-wrap";
+
+      const row = document.createElement("div");
+      row.className = "topic-row" + (isDone? " done":"");
+      const cbId = "cb-"+key;
+      if(highlightTi !== null && ti === highlightTi && pi === highlightPi){
+        row.classList.add("highlight-flash");
+        row.dataset.jumpTarget = "1";
+      }
+      row.innerHTML = `
+        <input type="checkbox" id="${cbId}" ${isDone?"checked":""}>
+        <label for="${cbId}">${tp}</label>
+        <button class="res-toggle" title="المصادر والمرفقات">📎${resCount? `<span class="count">${resCount}</span>`:""}</button>
+      `;
+      row.querySelector("input").addEventListener("change",(e)=>{
+        if(e.target.checked){ progress[key]=Date.now(); row.classList.add("done"); logActivity(); }
+        else { const oldTs = progress[key]; delete progress[key]; row.classList.remove("done"); unlogActivity(oldTs); }
+        saveProgress();
+        document.getElementById("modalSub").textContent = (()=>{
+          const c = countTotals(section); return `${c.done} / ${c.total} مكتمل`;
+        })();
+      });
+
+      const panel = buildResourcePanel(key);
+      wireResToggle(row.querySelector(".res-toggle"), panel, key);
+
+      wrap.appendChild(row);
+      wrap.appendChild(panel);
+      topicsWrap.appendChild(wrap);
+    });
+
+    themeBlock.appendChild(topicsWrap);
+    modalBody.appendChild(themeBlock);
+  });
+
+  if(filter && !anyVisible){
+    modalBody.innerHTML = `<div class="empty-state">لا توجد نتائج مطابقة في هذا القسم</div>`;
+  }
+
+  if(highlightTi !== null && highlightPi !== null){
+    const target = modalBody.querySelector('[data-jump-target="1"]');
+    if(target){
+      setTimeout(()=> target.scrollIntoView({behavior:"smooth", block:"center"}), 120);
+    }
+  }
+}
+
+document.getElementById("markAllBtn").addEventListener("click", ()=>{
+  const section = DATA.find(s=>s.id===currentSectionId);
+  if(!section) return;
+  section.themes.forEach((th,ti)=>{
+    if(isThemeHidden(section.id, ti)) return;
+    th.topics.forEach((tp,pi)=>{
+      if(isTopicHidden(section.id, ti, pi)) return;
+      const k = topicKey(section.id,ti,pi);
+      if(!progress[k]) logActivity();
+      progress[k]=Date.now();
+    });
+  });
+  saveProgress();
+  openModal(section.id);
+  showToast("تم تحديد جميع مواضيع "+section.title);
+});
+document.getElementById("clearAllBtn").addEventListener("click", ()=>{
+  const section = DATA.find(s=>s.id===currentSectionId);
+  if(!section) return;
+  section.themes.forEach((th,ti)=>{
+    if(isThemeHidden(section.id, ti)) return;
+    th.topics.forEach((tp,pi)=>{
+      if(isTopicHidden(section.id, ti, pi)) return;
+      const k = topicKey(section.id,ti,pi);
+      const oldTs = progress[k];
+      delete progress[k];
+      unlogActivity(oldTs);
+    });
+  });
+  saveProgress();
+  openModal(section.id);
+  showToast("تم إلغاء تحديد "+section.title);
+});
+
+/* ---- Resource panel builder (shared) ---- */
+/* Cheap skeleton — the heavy tabs/forms/list are only built the first time
+   the user actually opens a panel (see populateResourcePanel below). This
+   keeps large sections (100+ topics) fast to render. */
+function buildResourcePanel(key){
+  const panel = document.createElement("div");
+  panel.className = "res-panel";
+  panel.dataset.key = key;
+  return panel;
+}
+function wireResToggle(btn, panel, key){
+  btn.addEventListener("click", ()=>{
+    if(!panel.dataset.built){
+      populateResourcePanel(panel, key);
+      panel.dataset.built = "1";
+    }
+    panel.classList.toggle("open");
+  });
+}
+/* ---- Dedicated per-topic resource modal (opened directly from a chip card) ---- */
+const resourceOverlay = document.getElementById("resourceOverlay");
+let _resourceModalOnClose = null;
+function _closeResourceModal(){
+  resourceOverlay.classList.remove("open");
+  if(_resourceModalOnClose){ const cb = _resourceModalOnClose; _resourceModalOnClose = null; cb(); }
+}
+document.getElementById("closeResourceModal").addEventListener("click", _closeResourceModal);
+resourceOverlay.addEventListener("click", (e)=>{ if(e.target===resourceOverlay) _closeResourceModal(); });
+function openResourceModal(key, topicLabel, contextLabel, onClose){
+  document.getElementById("resourceTitle").textContent = topicLabel;
+  document.getElementById("resourceSub").textContent = contextLabel || "";
+  const body = document.getElementById("resourceModalBody");
+  body.innerHTML = "";
+  const panel = document.createElement("div");
+  panel.className = "res-panel open";
+  populateResourcePanel(panel, key);
+  body.appendChild(panel);
+  _resourceModalOnClose = onClose || null;
+  resourceOverlay.classList.add("open");
+}
+
+function populateResourcePanel(panel, key){
+  const list = document.createElement("div");
+  list.className = "res-list";
+  renderResList(list, key);
+  panel.appendChild(list);
+
+  const tabs = document.createElement("div");
+  tabs.className = "res-add-row";
+  tabs.innerHTML = `
+    <button class="res-tab active" data-type="link">🔗 رابط</button>
+    <button class="res-tab" data-type="note">📝 ملاحظة</button>
+    <button class="res-tab" data-type="file">📄 ملف / PDF</button>
+  `;
+  panel.appendChild(tabs);
+
+  const formLink = document.createElement("div");
+  formLink.className = "res-form active";
+  formLink.innerHTML = `
+    <input type="text" placeholder="اسم المصدر (اختياري)" class="rf-title">
+    <input type="url" placeholder="https://..." class="rf-url">
+    <button class="rf-add">إضافة</button>
+  `;
+  const formNote = document.createElement("div");
+  formNote.className = "res-form";
+  formNote.innerHTML = `
+    <textarea placeholder="اكتب ملاحظتك هنا..." class="rf-note"></textarea>
+    <button class="rf-add">إضافة</button>
+  `;
+  const formFile = document.createElement("div");
+  formFile.className = "res-form";
+  formFile.innerHTML = `
+    <input type="text" placeholder="اسم الملف (اختياري)" class="rf-title">
+    <input type="file" class="rf-file">
+    <button class="rf-add">رفع</button>
+  `;
+  panel.appendChild(formLink);
+  panel.appendChild(formNote);
+  panel.appendChild(formFile);
+
+  tabs.querySelectorAll(".res-tab").forEach(tab=>{
+    tab.addEventListener("click",()=>{
+      tabs.querySelectorAll(".res-tab").forEach(t=>t.classList.remove("active"));
+      tab.classList.add("active");
+      [formLink,formNote,formFile].forEach(f=>f.classList.remove("active"));
+      if(tab.dataset.type==="link") formLink.classList.add("active");
+      if(tab.dataset.type==="note") formNote.classList.add("active");
+      if(tab.dataset.type==="file") formFile.classList.add("active");
+    });
+  });
+
+  formLink.querySelector(".rf-add").addEventListener("click", ()=>{
+    const url = formLink.querySelector(".rf-url").value.trim();
+    if(!url){ showToast("الرجاء إدخال رابط"); return; }
+    const title = formLink.querySelector(".rf-title").value.trim() || url;
+    addResource(key, {id:genId(), type:"link", title, content:url});
+    renderResList(list, key);
+    refreshResCount(key);
+    formLink.querySelector(".rf-url").value = "";
+    formLink.querySelector(".rf-title").value = "";
+    showToast("تم إضافة الرابط");
+  });
+
+  formNote.querySelector(".rf-add").addEventListener("click", ()=>{
+    const text = formNote.querySelector(".rf-note").value.trim();
+    if(!text){ showToast("الرجاء كتابة ملاحظة"); return; }
+    addResource(key, {id:genId(), type:"note", title:text.slice(0,40)+(text.length>40?"…":""), content:text});
+    renderResList(list, key);
+    refreshResCount(key);
+    formNote.querySelector(".rf-note").value = "";
+    showToast("تم إضافة الملاحظة");
+  });
+
+  formFile.querySelector(".rf-add").addEventListener("click", async ()=>{
+    const fileInput = formFile.querySelector(".rf-file");
+    const file = fileInput.files[0];
+    if(!file){ showToast("الرجاء اختيار ملف"); return; }
+    const addBtn = formFile.querySelector(".rf-add");
+    addBtn.disabled = true; addBtn.textContent = "جارٍ الرفع...";
+    try{
+      const stored = await storeFile(file);
+      const title = formFile.querySelector(".rf-title").value.trim() || file.name;
+      const resItem = {id:stored.id, type:"file", title, fileName:file.name, fileType:file.type};
+      if(stored.inline) resItem.dataUrl = stored.dataUrl;
+      addResource(key, resItem);
+      renderResList(panel.querySelector(".res-list"), key);
+      refreshResCount(key);
+      fileInput.value = "";
+      formFile.querySelector(".rf-title").value = "";
+      showToast("تم رفع الملف");
+    }catch(err){
+      showToast("تعذر حفظ الملف: " + (err && err.message ? err.message : "خطأ غير معروف"));
+    }finally{
+      addBtn.disabled = false; addBtn.textContent = "رفع";
+    }
+  });
+}
+
+function addResource(key, item){
+  if(!resources[key]) resources[key] = [];
+  resources[key].push(item);
+  saveResources();
+}
+async function removeResource(key, id, type){
+  resources[key] = (resources[key]||[]).filter(r=>r.id!==id);
+  if(resources[key].length===0) delete resources[key];
+  saveResources();
+  if(type==="file"){ try{ await deleteFileBlob(id); }catch(e){} }
+}
+function refreshResCount(key){
+  document.querySelectorAll(`#cb-${CSS.escape(key)}`).forEach(cb=>{
+    const row = cb.closest(".topic-row");
+    if(!row) return;
+    const btn = row.querySelector(".res-toggle");
+    const n = (resources[key]||[]).length;
+    btn.innerHTML = `📎${n? `<span class="count">${n}</span>`:""}`;
+  });
+}
+function renderResList(listEl, key){
+  listEl.innerHTML = "";
+  const items = resources[key] || [];
+  if(items.length===0){
+    listEl.innerHTML = `<div class="res-empty">لا توجد مصادر مضافة لهذا الموضوع بعد.</div>`;
+    return;
+  }
+  items.forEach(item=>{
+    const row = document.createElement("div");
+    row.className = "res-item";
+    let icon = "🔗", body = "";
+    if(item.type==="link"){
+      icon = "🔗";
+      body = `<a href="${item.content}" target="_blank" rel="noopener" class="res-title">${item.title}</a>`;
+    } else if(item.type==="note"){
+      icon = "📝";
+      body = `<span class="res-title" title="${escapeHtml(item.content)}">${item.title}</span>`;
+    } else if(item.type==="file"){
+      icon = "📄";
+      body = `<a href="#" class="res-title res-file-link">${item.title}</a>`;
+    }
+    row.innerHTML = `<span class="res-icon">${icon}</span>${body}<button class="res-del" title="حذف">🗑️</button>`;
+
+    if(item.type==="file"){
+      row.querySelector(".res-file-link").addEventListener("click", async (e)=>{
+        e.preventDefault();
+        openFileItem(item);
+      });
+    }
+    if(item.type==="note"){
+      row.querySelector(".res-title").addEventListener("click", ()=> customAlert("📝 ملاحظة", item.content));
+      row.style.cursor="pointer";
+    }
+    row.querySelector(".res-del").addEventListener("click", async ()=>{
+      await removeResource(key, item.id, item.type);
+      renderResList(listEl, key);
+      refreshResCount(key);
+      renderGrid();
+    });
+    listEl.appendChild(row);
+  });
+}
+function escapeHtml(str){
+  const d = document.createElement("div");
+  d.textContent = str;
+  return d.innerHTML;
+}
+function keyInfo(key){
+  const [sid, ti, pi] = key.split("__");
+  const section = DATA.find(s=>s.id===sid);
+  if(!section) return null;
+  const theme = section.themes[+ti];
+  if(!theme) return null;
+  const topic = theme.topics[+pi];
+  return {section, theme, topic};
+}
+
+/* ================= GENERIC MODAL (stats/incomplete/files/settings/dashboards) ================= */
+const overlay2 = document.getElementById("overlay2");
+const modal2Body = document.getElementById("modal2Body");
+let modal2Stack = [];
+let currentModal2State = null;
+
+function _renderModal2State(cfg){
+  document.getElementById("modal2Icon").textContent = cfg.icon;
+  document.getElementById("modal2Icon").style.background = cfg.iconBg || "rgba(255,255,255,.12)";
+  document.getElementById("modal2Title").textContent = cfg.title;
+  document.getElementById("modal2Sub").textContent = cfg.sub || "";
+  modal2Body.innerHTML = "";
+  cfg.renderFn(modal2Body);
+  overlay2.classList.add("open");
+  document.getElementById("modal2Back").style.display = modal2Stack.length ? "flex" : "none";
+}
+/* Fresh entry point (dock buttons, tile clicks) — resets any back history. */
+function openGenericModal(cfg){
+  modal2Stack = [];
+  currentModal2State = cfg;
+  _renderModal2State(cfg);
+}
+/* Drill-down navigation (e.g. section dashboard -> theme dashboard) — keeps
+   the previous view reachable via the back arrow. */
+function pushGenericModal(cfg){
+  if(overlay2.classList.contains("open") && currentModal2State){
+    modal2Stack.push(currentModal2State);
+  }
+  currentModal2State = cfg;
+  _renderModal2State(cfg);
+}
+function goBackModal2(){
+  if(modal2Stack.length){
+    const prev = modal2Stack.pop();
+    currentModal2State = prev;
+    _renderModal2State(prev);
+  } else {
+    closeModal2();
+  }
+}
+function closeModal2(){
+  overlay2.classList.remove("open");
+  modal2Stack = [];
+  currentModal2State = null;
+}
+document.getElementById("closeModal2").addEventListener("click", closeModal2);
+document.getElementById("modal2Back").addEventListener("click", goBackModal2);
+overlay2.addEventListener("click",(e)=>{ if(e.target===overlay2) closeModal2(); });
+
+/* ---- Pro Dashboard (per-section detailed analytics) ---- */
+function openSectionDashboard(sectionId){
+  const section = DATA.find(s=>s.id===sectionId);
+  if(!section) return;
+  openGenericModal({
+    icon: section.icon, iconBg: section.color+"33",
+    title: section.title, sub: "لوحة تفصيلية",
+    renderFn: (c)=> renderSectionDashboard(c, section)
+  });
+}
+
+function renderSectionDashboard(container, section){
+  container.innerHTML = "";
+  const {total, done} = countTotals(section);
+  const percent = total? Math.round((done/total)*100) : 0;
+  const resCount = sectionResourceCount(section);
+  const lastTs = sectionLastStudied(section);
+  const themeCount = section.themes.filter((th,ti)=> !isThemeHidden(section.id, ti)).length;
+
+  /* Hero */
+  const hero = document.createElement("div");
+  hero.className = "dash-hero";
+  hero.style.setProperty("--dc", section.color);
+  hero.innerHTML = `
+    <div class="dash-hero-top">
+      <div class="dash-hero-icon">${section.icon}</div>
+      <div>
+        <div class="dash-hero-title">${section.title}</div>
+        <div class="dash-hero-sub">${themeCount} محاور — ${total} موضوع</div>
+      </div>
+      <div class="dash-ring-big" style="--p:${percent}"><span>${percent}%</span></div>
+    </div>
+    <div class="dash-quick">
+      <div class="dash-quick-card"><div class="n">${done}</div><div class="l">مكتمل</div></div>
+      <div class="dash-quick-card"><div class="n">${total-done}</div><div class="l">متبقي</div></div>
+      <div class="dash-quick-card"><div class="n">${resCount}</div><div class="l">مصادر مرفقة</div></div>
+      <div class="dash-quick-card"><div class="n">${formatRelativeDate(lastTs)}</div><div class="l">آخر مذاكرة</div></div>
+    </div>
+  `;
+  container.appendChild(hero);
+
+  /* Section-level bulk actions */
+  const sBulkRow = document.createElement("div");
+  sBulkRow.className = "settings-row";
+  sBulkRow.style.marginBottom = "18px";
+  sBulkRow.innerHTML = `
+    <button class="mini-btn" id="secMarkAll">✔️ تحديد كل مواضيع القسم</button>
+    <button class="mini-btn" id="secClearAll">↺ إلغاء تحديد الكل</button>
+    <button class="mini-btn" id="secIncompleteDash">📋 غير المكتمل</button>
+  `;
+  sBulkRow.querySelector("#secMarkAll").addEventListener("click", ()=>{
+    section.themes.forEach((th,ti)=>{
+      if(isThemeHidden(section.id, ti)) return;
+      th.topics.forEach((tp,pi)=>{
+        if(isTopicHidden(section.id, ti, pi)) return;
+        const k = topicKey(section.id,ti,pi);
+        if(!progress[k]) logActivity();
+        progress[k] = Date.now();
+      });
+    });
+    saveProgress();
+    renderSectionDashboard(container, section);
+  });
+  sBulkRow.querySelector("#secClearAll").addEventListener("click", ()=>{
+    section.themes.forEach((th,ti)=>{
+      if(isThemeHidden(section.id, ti)) return;
+      th.topics.forEach((tp,pi)=>{
+        if(isTopicHidden(section.id, ti, pi)) return;
+        const k = topicKey(section.id,ti,pi);
+        const oldTs = progress[k];
+        delete progress[k];
+        unlogActivity(oldTs);
+      });
+    });
+    saveProgress();
+    renderSectionDashboard(container, section);
+  });
+  sBulkRow.querySelector("#secIncompleteDash").addEventListener("click", ()=>{
+    pushGenericModal({
+      icon:"📋", title:"غير المكتمل — "+section.title, sub:"كل ما تبقى عليك مذاكرته في هذا القسم",
+      renderFn: (c)=> renderIncompleteView(c, section.id)
+    });
+  });
+  container.appendChild(sBulkRow);
+
+  /* Extra stat cards */
+  const bestTheme = section.themes.map((th,ti)=>{
+    if(isThemeHidden(section.id, ti)) return null;
+    const ts = themeStats(section, ti);
+    return {name:th.name, done:ts.done, total:ts.total, pct: ts.total? Math.round(ts.done/ts.total*100):0};
+  }).filter(Boolean).sort((a,b)=>b.pct-a.pct);
+  const strongest = bestTheme[0];
+  const weakest = [...bestTheme].sort((a,b)=>a.pct-b.pct)[0];
+
+  const statGrid = document.createElement("div");
+  statGrid.className = "dash-stat-grid";
+  statGrid.innerHTML = `
+    <div class="dash-stat"><div class="n">${themeCount}</div><div class="l">عدد المحاور</div></div>
+    <div class="dash-stat"><div class="n">${strongest ? strongest.pct+"%" : "—"}</div><div class="l">أقوى محور: ${strongest?strongest.name:"—"}</div></div>
+    <div class="dash-stat"><div class="n">${weakest ? weakest.pct+"%" : "—"}</div><div class="l">يحتاج مذاكرة: ${weakest?weakest.name:"—"}</div></div>
+    <div class="dash-stat"><div class="n">${percent}%</div><div class="l">نسبة الإنجاز الكلية</div></div>
+  `;
+  container.appendChild(statGrid);
+
+  /* Theme breakdown table */
+  const tTitle = document.createElement("div");
+  tTitle.className = "dash-section-title";
+  tTitle.textContent = "📚 التقدم حسب المحاور";
+  container.appendChild(tTitle);
+
+  const table = document.createElement("div");
+  table.className = "theme-table";
+  section.themes.forEach((th, ti)=>{
+    if(isThemeHidden(section.id, ti)) return;
+    const ts = themeStats(section, ti);
+    const pct = ts.total? Math.round(ts.done/ts.total*100):0;
+    const row = document.createElement("div");
+    row.className = "theme-row";
+    row.style.setProperty("--dc", section.color);
+    row.style.cursor = "pointer";
+    row.innerHTML = `
+      <div class="tname">${th.name}</div>
+      <div class="tbar"><div class="tbar-fill" style="width:${pct}%"></div></div>
+      <div class="tcount">${ts.done}/${ts.total}</div>
+    `;
+    row.addEventListener("click", ()=> openThemeDashboard(section.id, ti));
+    table.appendChild(row);
+  });
+  container.appendChild(table);
+
+  /* Recent completions */
+  const rTitle = document.createElement("div");
+  rTitle.className = "dash-section-title";
+  rTitle.textContent = "🕒 آخر المواضيع المذاكرة";
+  container.appendChild(rTitle);
+
+  const recent = sectionRecentCompletions(section, 8);
+  const rTable = document.createElement("div");
+  rTable.className = "recent-table";
+  if(recent.length===0){
+    rTable.innerHTML = `<div class="empty-state">لسه معملتش تحديد لأي موضوع في هذا القسم</div>`;
+  } else {
+    recent.forEach(r=>{
+      const row = document.createElement("div");
+      row.className = "recent-row";
+      row.innerHTML = `<span>✅</span>
+        <div style="flex:1;min-width:0;">
+          <div class="rtitle">${r.tp}</div>
+          <div class="rtheme">${r.themeName}</div>
+        </div>
+        <span class="rdate">${formatRelativeDate(r.ts)}</span>`;
+      rTable.appendChild(row);
+    });
+  }
+  container.appendChild(rTable);
+
+  /* Jump to full topic list */
+  const openBtn = document.createElement("button");
+  openBtn.className = "mini-btn";
+  openBtn.style.marginTop = "16px";
+  openBtn.textContent = "📖 فتح قائمة المواضيع الكاملة";
+  openBtn.addEventListener("click", ()=>{
+    closeModal2();
+    openModal(section.id);
+  });
+  container.appendChild(openBtn);
+}
+
+/* ---- Theme (sub-heading) Pro Dashboard ---- */
+function openThemeDashboard(sectionId, ti){
+  const section = DATA.find(s=>s.id===sectionId);
+  if(!section) return;
+  const theme = section.themes[ti];
+  pushGenericModal({
+    icon: section.icon, iconBg: section.color+"33",
+    title: theme.name, sub: section.title,
+    renderFn: (c)=> renderThemeDashboard(c, section, ti)
+  });
+}
+
+function renderThemeDashboard(container, section, ti){
+  container.innerHTML = "";
+  const theme = section.themes[ti];
+  const ts = themeStats(section, ti);
+  const pct = ts.total? Math.round(ts.done/ts.total*100):0;
+
+  /* Mini hero */
+  const hero = document.createElement("div");
+  hero.className = "dash-hero";
+  hero.style.setProperty("--dc", section.color);
+  hero.innerHTML = `
+    <div class="dash-hero-top">
+      <div class="dash-hero-icon">${section.icon}</div>
+      <div>
+        <div class="dash-hero-title" style="font-size:17px;">${theme.name}</div>
+        <div class="dash-hero-sub">${section.title} — ${ts.total} موضوع</div>
+      </div>
+      <div class="dash-ring-big" style="width:78px;height:78px;--p:${pct}"><span style="font-size:16px;">${pct}%</span></div>
+    </div>
+    <div class="dash-quick">
+      <div class="dash-quick-card"><div class="n">${ts.done}</div><div class="l">مكتمل</div></div>
+      <div class="dash-quick-card"><div class="n">${ts.total-ts.done}</div><div class="l">متبقي</div></div>
+      <div class="dash-quick-card"><div class="n">${ts.resCount}</div><div class="l">مصادر</div></div>
+      <div class="dash-quick-card"><div class="n">${formatRelativeDate(ts.lastTs)}</div><div class="l">آخر مذاكرة</div></div>
+    </div>
+  `;
+  container.appendChild(hero);
+
+  /* Theme-level bulk actions */
+  const bulkRow = document.createElement("div");
+  bulkRow.className = "settings-row";
+  bulkRow.style.marginBottom = "18px";
+  bulkRow.innerHTML = `
+    <button class="mini-btn" id="themeMarkAll">✔️ تحديد الكل</button>
+    <button class="mini-btn" id="themeClearAll">↺ إلغاء الكل</button>
+  `;
+  bulkRow.querySelector("#themeMarkAll").addEventListener("click", ()=>{
+    ts.topics.forEach(t=>{
+      if(!progress[t.key]) logActivity();
+      progress[t.key] = Date.now();
+    });
+    saveProgress();
+    renderThemeDashboard(container, section, ti);
+  });
+  bulkRow.querySelector("#themeClearAll").addEventListener("click", ()=>{
+    ts.topics.forEach(t=>{
+      const oldTs = progress[t.key];
+      delete progress[t.key];
+      unlogActivity(oldTs);
+    });
+    saveProgress();
+    renderThemeDashboard(container, section, ti);
+  });
+  container.appendChild(bulkRow);
+
+  /* Quick toggle chip grid */
+  const chipTitle = document.createElement("div");
+  chipTitle.className = "dash-section-title";
+  chipTitle.textContent = "⚡ نظرة سريعة — دوس على أي بطاقة للتحديد";
+  container.appendChild(chipTitle);
+
+  const chipGrid = document.createElement("div");
+  chipGrid.className = "chip-grid";
+  chipGrid.style.setProperty("--dc", section.color);
+  ts.topics.forEach(t=>{
+    const chip = document.createElement("div");
+    chip.className = "topic-chip" + (t.isDone ? " done":"");
+    chip.style.setProperty("--dc", section.color);
+    chip.innerHTML = `
+      <div class="chip-top">
+        <div class="chip-status">✓</div>
+        <button class="chip-res-btn" title="المصادر والمرفقات">📎${t.resCount ? `<span class="count">${t.resCount}</span>` : ""}</button>
+      </div>
+      <div class="chip-label">${t.tp}</div>
+    `;
+    chip.addEventListener("click", ()=>{
+      if(progress[t.key]){ const oldTs = progress[t.key]; delete progress[t.key]; unlogActivity(oldTs); }
+      else { progress[t.key] = Date.now(); logActivity(); }
+      saveProgress();
+      renderThemeDashboard(container, section, ti);
+    });
+    chip.querySelector(".chip-res-btn").addEventListener("click", (e)=>{
+      e.stopPropagation();
+      openResourceModal(t.key, t.tp, theme.name, ()=> renderThemeDashboard(container, section, ti));
+    });
+    chipGrid.appendChild(chip);
+  });
+  container.appendChild(chipGrid);
+
+  const openBtn = document.createElement("button");
+  openBtn.className = "mini-btn";
+  openBtn.style.marginTop = "6px";
+  openBtn.textContent = "📊 لوحة القسم الكاملة";
+  openBtn.addEventListener("click", ()=>{
+    openSectionDashboard(section.id);
+  });
+  container.appendChild(openBtn);
+}
+
+/* ---- Stats view ---- */
+document.getElementById("statsBtn").addEventListener("click", ()=>{
+  openGenericModal({
+    icon:"📊", title:"إحصائيات المذاكرة", sub:"نظرة على استمراريتك خلال آخر فترة",
+    renderFn: renderStatsView
+  });
+});
+function renderStatsView(container){
+  container.innerHTML = "";
+  const streak = computeStreak();
+  const today = activity[todayStr()] || 0;
+  const week = sumLastNDays(7);
+  const month = sumThisMonth();
+
+  const cards = document.createElement("div");
+  cards.className = "stat-cards";
+  cards.innerHTML = `
+    <div class="stat-card"><div class="num">${today}</div><div class="lbl">اليوم</div></div>
+    <div class="stat-card"><div class="num">${week}</div><div class="lbl">آخر 7 أيام</div></div>
+    <div class="stat-card"><div class="num">${month}</div><div class="lbl">هذا الشهر</div></div>
+    <div class="stat-card"><div class="num">🔥${streak}</div><div class="lbl">أيام الاستمرارية</div></div>
+  `;
+  container.appendChild(cards);
+
+  const heatTitle = document.createElement("div");
+  heatTitle.className = "theme-name";
+  heatTitle.textContent = "سجل النشاط (آخر 10 أسابيع)";
+  container.appendChild(heatTitle);
+
+  const heatWrap = document.createElement("div");
+  heatWrap.className = "heatmap-wrap";
+  const heat = document.createElement("div");
+  heat.className = "heatmap";
+
+  const days = 70;
+  const cellsData = [];
+  const d = new Date();
+  for(let i=days-1;i>=0;i--){
+    const dt = new Date();
+    dt.setDate(d.getDate()-i);
+    const ds = todayStr(dt);
+    cellsData.push({date:ds, count:activity[ds]||0});
+  }
+  // pad start so grid begins on a Sunday-aligned column
+  const firstDow = new Date(cellsData[0].date).getDay();
+  for(let i=0;i<firstDow;i++){
+    const c = document.createElement("div");
+    c.className = "hcell";
+    c.style.visibility = "hidden";
+    heat.appendChild(c);
+  }
+  cellsData.forEach(c=>{
+    const cell = document.createElement("div");
+    cell.className = "hcell";
+    let lvl = 0;
+    if(c.count>=6) lvl=4; else if(c.count>=4) lvl=3; else if(c.count>=2) lvl=2; else if(c.count>=1) lvl=1;
+    cell.dataset.lvl = lvl;
+    cell.title = `${c.date} — ${c.count} موضوع`;
+    heat.appendChild(cell);
+  });
+  heatWrap.appendChild(heat);
+  container.appendChild(heatWrap);
+
+  const legend = document.createElement("div");
+  legend.className = "heatmap-legend";
+  legend.innerHTML = `<span>أقل</span>
+    <div class="hcell" data-lvl="0"></div>
+    <div class="hcell" data-lvl="1"></div>
+    <div class="hcell" data-lvl="2"></div>
+    <div class="hcell" data-lvl="3"></div>
+    <div class="hcell" data-lvl="4"></div>
+    <span>أكثر</span>`;
+  container.appendChild(legend);
+}
+function updateStatsIfOpen(){ if(overlay2.classList.contains("open") && document.getElementById("modal2Title").textContent.includes("إحصائيات")) renderStatsView(modal2Body); }
+
+/* ---- Homepage: open the full Content Manager ---- */
+document.getElementById("addSectionHomeBtn").addEventListener("click", ()=>{
+  openGenericModal({
+    icon:"📚", title:"إدارة المحتوى", sub:"أضف قسم أو محور أو موضوع، أو عدّل الموجود",
+    renderFn: renderContentManager
+  });
+});
+
+/* ---- Themes Browser (direct access to any theme's dashboard) ---- */
+document.getElementById("themesBtn").addEventListener("click", ()=>{
+  openGenericModal({
+    icon:"🔖", title:"المحاور", sub:"افتح لوحة أي محور مباشرة",
+    renderFn: renderThemesBrowser
+  });
+});
+function renderThemesBrowser(container){
+  container.innerHTML = "";
+  DATA.forEach(section=>{
+    const group = document.createElement("div");
+    group.style.marginBottom = "18px";
+    const head = document.createElement("div");
+    head.style.cssText = "display:flex;align-items:center;gap:10px;margin-bottom:10px;";
+    head.innerHTML = `<div class="tile-icon" style="width:32px;height:32px;font-size:15px;background:${section.color}33">${section.icon}</div>
+      <div style="font-weight:800;font-size:14.5px;">${section.title}</div>`;
+    group.appendChild(head);
+
+    const grid = document.createElement("div");
+    grid.className = "chip-grid";
+    grid.style.setProperty("--dc", section.color);
+    section.themes.forEach((theme, ti)=>{
+      if(isThemeHidden(section.id, ti)) return;
+      const ts = themeStats(section, ti);
+      const pct = ts.total? Math.round(ts.done/ts.total*100):0;
+      const card = document.createElement("div");
+      card.className = "topic-chip" + (pct===100 ? " done":"");
+      card.style.setProperty("--dc", section.color);
+      card.innerHTML = `
+        <div class="chip-top">
+          <span class="chip-res">${ts.done}/${ts.total}</span>
+          <span class="chip-res">${pct}%</span>
+        </div>
+        <div class="chip-label">${theme.name}</div>
+      `;
+      card.addEventListener("click", ()=>{
+        openThemeDashboard(section.id, ti);
+      });
+      grid.appendChild(card);
+    });
+    group.appendChild(grid);
+    container.appendChild(group);
+  });
+}
+
+/* ---- Incomplete-only view (now section-scoped, opened from inside a section) ---- */
+document.getElementById("sectionIncompleteBtn").addEventListener("click", ()=>{
+  const section = DATA.find(s=>s.id===currentSectionId);
+  if(!section) return;
+  openGenericModal({
+    icon:"📋", title:"غير المكتمل — "+section.title, sub:"كل ما تبقى عليك مذاكرته في هذا القسم",
+    renderFn: (c)=> renderIncompleteView(c, section.id)
+  });
+});
+function renderIncompleteView(container, onlySectionId){
+  container.innerHTML = "";
+  let anyLeft = false;
+  const sections = onlySectionId ? DATA.filter(s=>s.id===onlySectionId) : DATA;
+  sections.forEach(section=>{
+    const rowsHtml = [];
+    section.themes.forEach((theme, ti)=>{
+      if(isThemeHidden(section.id, ti)) return;
+      theme.topics.forEach((tp, pi)=>{
+        if(isTopicHidden(section.id, ti, pi)) return;
+        const key = topicKey(section.id, ti, pi);
+        if(!progress[key]) rowsHtml.push({key, tp, themeName:theme.name});
+      });
+    });
+    if(rowsHtml.length===0) return;
+    anyLeft = true;
+
+    const groupWrap = document.createElement("div");
+    groupWrap.style.marginBottom = "18px";
+    const head = document.createElement("div");
+    head.style.cssText = "display:flex;align-items:center;gap:10px;margin-bottom:8px;";
+    head.innerHTML = `<div class="tile-icon" style="width:32px;height:32px;font-size:15px;background:${section.color}33">${section.icon}</div>
+      <div style="font-weight:800;font-size:14.5px;">${section.title}</div>
+      <span style="color:var(--muted);font-size:12px;margin-inline-start:auto;">${rowsHtml.length} متبقي</span>`;
+    groupWrap.appendChild(head);
+
+    rowsHtml.forEach(({key,tp,themeName})=>{
+      const row = document.createElement("div");
+      row.className = "topic-row";
+      const cbId = "inc-"+key;
+      row.innerHTML = `
+        <input type="checkbox" id="${cbId}">
+        <label for="${cbId}">${tp}<span class="ctx">${themeName}</span></label>
+      `;
+      row.querySelector("input").addEventListener("change",(e)=>{
+        if(e.target.checked){
+          progress[key]=Date.now(); logActivity(); saveProgress();
+          row.style.opacity=".4";
+          setTimeout(()=>{ renderIncompleteView(container, onlySectionId); }, 250);
+        }
+      });
+      groupWrap.appendChild(row);
+    });
+    container.appendChild(groupWrap);
+  });
+  container.querySelectorAll(".empty-state").forEach(e=>e.remove());
+  if(!anyLeft){
+    container.innerHTML = `<div class="empty-state">🎉 ما شاء الله، خلّصت كل المواضيع!</div>`;
+  }
+}
+
+/* ---- Files view ---- */
+document.getElementById("filesBtn").addEventListener("click", ()=>{
+  openGenericModal({
+    icon:"📁", title:"ملفاتي", sub:"كل الملفات، الروابط والملاحظات المرفوعة لكل موضوع",
+    renderFn: renderFilesView
+  });
+});
+function renderFilesView(container){
+  container.innerHTML = "";
+  const bySection = {};
+  Object.keys(resources).forEach(key=>{
+    const info = keyInfo(key);
+    if(!info) return;
+    const items = resources[key];
+    if(!items || items.length===0) return;
+    if(!bySection[info.section.id]) bySection[info.section.id] = {section:info.section, entries:[]};
+    items.forEach(item=>{
+      bySection[info.section.id].entries.push({item, theme:info.theme.name, topic:info.topic, key});
+    });
+  });
+
+  const sectionIds = Object.keys(bySection);
+  if(sectionIds.length===0){
+    container.innerHTML = `<div class="empty-state">لسه معملتش رفع لأي ملفات أو روابط أو ملاحظات.<br>افتح أي موضوع واضغط 📎 عشان تضيف مصدر.</div>`;
+    return;
+  }
+
+  sectionIds.forEach(sid=>{
+    const {section, entries} = bySection[sid];
+    const group = document.createElement("div");
+    group.className = "file-group";
+    group.innerHTML = `<h4><span class="tile-icon" style="width:28px;height:28px;font-size:13px;background:${section.color}33">${section.icon}</span>${section.title} <span style="color:var(--muted);font-weight:600;">(${entries.length})</span></h4>`;
+
+    const list = document.createElement("div");
+    list.className = "res-list";
+    entries.forEach(({item, theme, topic, key})=>{
+      const row = document.createElement("div");
+      row.className = "res-item";
+      let icon = item.type==="link"?"🔗":item.type==="note"?"📝":"📄";
+      let body = "";
+      if(item.type==="link"){
+        body = `<div style="flex:1;min-width:0;"><a href="${item.content}" target="_blank" rel="noopener" class="res-title" style="display:block;">${item.title}</a><span class="ctx">${theme} — ${topic}</span></div>`;
+      } else if(item.type==="note"){
+        body = `<div style="flex:1;min-width:0;cursor:pointer;" class="note-open"><span class="res-title" style="display:block;">${item.title}</span><span class="ctx">${theme} — ${topic}</span></div>`;
+      } else {
+        body = `<div style="flex:1;min-width:0;cursor:pointer;" class="file-open"><span class="res-title" style="display:block;">${item.title}</span><span class="ctx">${theme} — ${topic}</span></div>`;
+      }
+      row.innerHTML = `<span class="res-icon">${icon}</span>${body}`;
+      if(item.type==="note"){
+        row.querySelector(".note-open").addEventListener("click", ()=> customAlert("📝 ملاحظة", item.content));
+      }
+      if(item.type==="file"){
+        row.querySelector(".file-open").addEventListener("click", ()=>{
+          openFileItem(item);
+        });
+      }
+      list.appendChild(row);
+    });
+    group.appendChild(list);
+    container.appendChild(group);
+  });
+}
+
+/* ================= POMODORO + PLANT GARDEN ================= */
+const GARDEN_KEY = "emle_garden_v1";
+let garden = JSON.parse(localStorage.getItem(GARDEN_KEY) || "[]");
+function saveGarden(){ localStorage.setItem(GARDEN_KEY, JSON.stringify(garden)); }
+function addPlantToGarden(emoji){
+  garden.push({type:emoji, ts:Date.now()});
+  saveGarden();
+  renderGarden();
+}
+function renderGarden(){
+  const wrap = document.getElementById("gardenPlants");
+  const countEl = document.getElementById("gardenCount");
+  if(!wrap || !countEl) return;
+  countEl.textContent = garden.length + " نبتة";
+  wrap.innerHTML = garden.length
+    ? garden.map(p=>`<span class="garden-plant">${p.type}</span>`).join("")
+    : `<span class="garden-empty">أكمل جلسة بومودورو عشان تزرع أول نبتة 🌱</span>`;
+}
+function pickPlantForDuration(min){
+  const short = ["🌱","🌿"];
+  const medium = ["🌸","🌼","🍀"];
+  const long = ["🌳","🌺","🌻","🌷"];
+  const arr = min<=20 ? short : (min<=40 ? medium : long);
+  return arr[Math.floor(Math.random()*arr.length)];
+}
+
+let pomodoroInterval = null;
+let pomodoroRemaining = 0;
+let pomodoroDurationMin = 25;
+let pomodoroActive = false;
+function clearPomodoroInterval(){
+  if(pomodoroInterval){ clearInterval(pomodoroInterval); pomodoroInterval = null; }
+}
+function updatePomodoroBadge(){
+  const badge = document.getElementById("pomodoroBadge");
+  if(!badge) return;
+  if(!pomodoroActive){ badge.classList.remove("active"); return; }
+  const totalSec = pomodoroDurationMin*60;
+  const pct = Math.round(((totalSec-pomodoroRemaining)/totalSec)*100);
+  badge.style.setProperty("--p", pct);
+  badge.classList.add("active");
+}
+
+document.getElementById("pomodoroBtn").addEventListener("click", ()=>{
+  openGenericModal({
+    icon:"🍅", title:"بومودورو", sub:"ركّز وازرع حديقتك",
+    renderFn: pomodoroActive ? renderPomodoroRunning : renderPomodoroSetup
+  });
+});
+
+function renderPomodoroSetup(container){
+  container.innerHTML = `
+    <div class="dash-section-title">⏱️ اختر مدة جلسة التركيز</div>
+    <div class="settings-row" style="margin-bottom:14px;">
+      <button class="mini-btn" data-min="15">15 دقيقة</button>
+      <button class="mini-btn" data-min="25">25 دقيقة</button>
+      <button class="mini-btn" data-min="45">45 دقيقة</button>
+      <button class="mini-btn" data-min="60">60 دقيقة</button>
+    </div>
+    <div class="dash-section-title">⚙️ أو حدد عدد الدقائق بنفسك</div>
+    <div class="fs-row" style="margin-bottom:20px;">
+      <input type="number" min="1" max="180" value="25" id="pomodoroCustom"
+        style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--glass-border);background:rgba(255,255,255,.08);color:var(--text);font-size:14px;">
+      <button class="mini-btn" id="pomodoroCustomStart" title="ابدأ">✔️</button>
+    </div>
+    <div class="dash-section-title">🌷 حديقتك حتى الآن</div>
+    <div class="garden-plants" id="pomodoroGardenPreview" style="min-height:30px;"></div>
+  `;
+  container.querySelectorAll("[data-min]").forEach(btn=>{
+    btn.addEventListener("click", ()=> startPomodoro(parseInt(btn.dataset.min), container));
+  });
+  container.querySelector("#pomodoroCustomStart").addEventListener("click", ()=>{
+    const v = parseInt(container.querySelector("#pomodoroCustom").value) || 25;
+    startPomodoro(Math.max(1, Math.min(180, v)), container);
+  });
+  const preview = container.querySelector("#pomodoroGardenPreview");
+  preview.innerHTML = garden.length
+    ? garden.map(p=>`<span class="garden-plant">${p.type}</span>`).join("")
+    : `<span class="garden-empty">لا نباتات بعد</span>`;
+}
+
+function startPomodoro(minutes, container){
+  pomodoroDurationMin = minutes;
+  pomodoroRemaining = minutes*60;
+  pomodoroActive = true;
+  renderPomodoroRunning(container);
+  pomodoroInterval = setInterval(()=>{
+    pomodoroRemaining--;
+    updatePomodoroDisplay(container);
+    updatePomodoroBadge();
+    if(pomodoroRemaining<=0){
+      clearPomodoroInterval();
+      pomodoroActive = false;
+      updatePomodoroBadge();
+      completePomodoro(container);
+    }
+  }, 1000);
+  updatePomodoroBadge();
+}
+
+function renderPomodoroRunning(container){
+  container.innerHTML = `
+    <div style="text-align:center;padding:10px 0 20px;">
+      <div class="dash-ring-big" id="pomodoroRing" style="width:140px;height:140px;margin:0 auto 18px;--p:0;">
+        <span id="pomodoroTimeLabel" style="font-size:26px;"></span>
+      </div>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:18px;">جلسة تركيز ${pomodoroDurationMin} دقيقة</div>
+      <div class="settings-row" style="justify-content:center;">
+        <button class="mini-btn" id="pomodoroBack">⬅ رجوع (يستمر بالخلفية)</button>
+        <button class="mini-btn" id="pomodoroPauseResume">${pomodoroInterval ? "⏸️ إيقاف مؤقت" : "▶️ استكمال"}</button>
+        <button class="mini-btn" id="pomodoroCancel" style="color:#ff6b6b;">✖ إلغاء</button>
+      </div>
+    </div>
+  `;
+  container.querySelector("#pomodoroBack").addEventListener("click", ()=>{
+    closeModal2();
+  });
+  container.querySelector("#pomodoroCancel").addEventListener("click", ()=>{
+    clearPomodoroInterval();
+    pomodoroActive = false;
+    updatePomodoroBadge();
+    renderPomodoroSetup(container);
+    showToast("تم إلغاء الجلسة");
+  });
+  container.querySelector("#pomodoroPauseResume").addEventListener("click", (e)=>{
+    if(pomodoroInterval){
+      clearPomodoroInterval();
+      e.target.textContent = "▶️ استكمال";
+    } else {
+      pomodoroInterval = setInterval(()=>{
+        pomodoroRemaining--;
+        updatePomodoroDisplay(container);
+        updatePomodoroBadge();
+        if(pomodoroRemaining<=0){
+          clearPomodoroInterval();
+          pomodoroActive = false;
+          updatePomodoroBadge();
+          completePomodoro(container);
+        }
+      }, 1000);
+      e.target.textContent = "⏸️ إيقاف مؤقت";
+    }
+  });
+  updatePomodoroDisplay(container);
+}
+
+function updatePomodoroDisplay(container){
+  const totalSec = pomodoroDurationMin*60;
+  const pct = Math.round(((totalSec-pomodoroRemaining)/totalSec)*100);
+  const ring = container.querySelector("#pomodoroRing");
+  if(ring) ring.style.setProperty("--p", pct);
+  const m = Math.floor(pomodoroRemaining/60);
+  const s = pomodoroRemaining%60;
+  const label = container.querySelector("#pomodoroTimeLabel");
+  if(label) label.textContent = `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
+
+function completePomodoro(container){
+  const plant = pickPlantForDuration(pomodoroDurationMin);
+  addPlantToGarden(plant);
+  container.innerHTML = `
+    <div style="text-align:center;padding:20px 0;">
+      <div style="font-size:60px;margin-bottom:10px;" class="garden-plant">${plant}</div>
+      <div style="font-size:16px;font-weight:800;margin-bottom:6px;">أحسنت! 🎉</div>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:20px;">أنبتت جلستك نبتة جديدة في حديقتك</div>
+      <div class="settings-row" style="justify-content:center;">
+        <button class="mini-btn" id="pomodoroAgain">🍅 جلسة أخرى</button>
+        <button class="mini-btn" id="pomodoroHome">🏠 رجوع للرئيسية</button>
+      </div>
+    </div>
+  `;
+  container.querySelector("#pomodoroAgain").addEventListener("click", ()=> renderPomodoroSetup(container));
+  container.querySelector("#pomodoroHome").addEventListener("click", ()=> closeModal2());
+}
+
+/* ---- Settings view ---- */
+document.getElementById("settingsBtn").addEventListener("click", ()=>{
+  openGenericModal({
+    icon:"⚙️", title:"الإعدادات", sub:"المظهر، حجم الخط، والنسخ الاحتياطي",
+    renderFn: renderSettingsView
+  });
+});
+function renderSettingsView(container){
+  container.innerHTML = "";
+  // Appearance
+  const b1 = document.createElement("div");
+  b1.className = "settings-block";
+  b1.innerHTML = `<h3>المظهر</h3>
+    <div class="settings-row">
+      <button class="mini-btn" id="stThemeToggle">${document.body.getAttribute("data-theme")==="dark" ? "☀️ تفعيل الوضع النهاري" : "🌙 تفعيل الوضع الليلي"}</button>
+    </div>`;
+  container.appendChild(b1);
+
+  // Visual theme picker (تخصيص المظهر)
+  const currentVisualTheme = getVisualTheme();
+  const bTheme = document.createElement("div");
+  bTheme.className = "settings-block";
+  bTheme.innerHTML = `<h3>🎨 تخصيص المظهر (Themes)</h3><div class="theme-pick-grid" id="themePickGrid"></div>`;
+  container.appendChild(bTheme);
+  const themePickGrid = bTheme.querySelector("#themePickGrid");
+  VISUAL_THEMES.forEach(t=>{
+    const card = document.createElement("div");
+    card.className = "theme-pick-card" + (t.id===currentVisualTheme ? " active":"");
+    card.innerHTML = `<div class="theme-pick-swatch" style="background:${t.swatch}"></div><div class="theme-pick-name">${t.name}</div>`;
+    card.addEventListener("click", ()=>{
+      setVisualTheme(t.id);
+      renderSettingsView(container);
+      showToast("تم تفعيل ثيم: "+t.name);
+    });
+    themePickGrid.appendChild(card);
+  });
+
+  // Section view mode
+  const viewMode = getViewMode();
+  const bView = document.createElement("div");
+  bView.className = "settings-block";
+  bView.innerHTML = `<h3>طريقة عرض الأقسام</h3>
+    <div class="settings-row">
+      <button class="mini-btn${viewMode==='dashboard'?' active':''}" id="stViewDash">🎛️ لوحات (Dashboards)</button>
+      <button class="mini-btn${viewMode==='list'?' active':''}" id="stViewList">🗂️ قائمة (List)</button>
+    </div>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.6;">
+      "لوحات" بيفتح لك لوحة تفصيلية بالمربعات لكل قسم ومحور. "قائمة" بيرجعك للشكل القديم بقائمة مرصوصة.
+    </div>`;
+  container.appendChild(bView);
+
+  // Performance / lightweight mode
+  const isLite = document.body.getAttribute("data-perf") === "lite";
+  const bPerf = document.createElement("div");
+  bPerf.className = "settings-block";
+  bPerf.innerHTML = `<h3>الأداء</h3>
+    <div class="settings-row">
+      <button class="mini-btn${isLite?' active':''}" id="stPerfToggle">${isLite ? "⚡ الوضع الخفيف: مُفعّل" : "⚡ تفعيل الوضع الخفيف (لأجهزة أضعف)"}</button>
+    </div>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.6;">
+      يوقف تأثيرات الزجاج والحركة والأنيميشن لتشغيل أسرع وأخف على الأجهزة الضعيفة أو الاتصال البطيء.
+    </div>`;
+  container.appendChild(bPerf);
+
+  // Font size
+  const b2 = document.createElement("div");
+  b2.className = "settings-block";
+  b2.innerHTML = `<h3>حجم الخط</h3>
+    <div class="fs-row">
+      <button id="fsMinus">A-</button>
+      <div class="fs-val" id="fsVal">${Math.round(getFontScale()*100)}%</div>
+      <button id="fsPlus">A+</button>
+      <button id="fsReset" style="width:auto;padding:0 12px;font-size:12px;">إعادة ضبط</button>
+    </div>`;
+  container.appendChild(b2);
+
+  // Accent colors
+  const b3 = document.createElement("div");
+  b3.className = "settings-block";
+  b3.innerHTML = `<h3>لون التطبيق (اختياري)</h3><div class="swatches" id="swatchRow"></div>`;
+  container.appendChild(b3);
+  const swatches = [
+    {id:"default", grad:"linear-gradient(135deg,#5eead4,#7c9bff)"},
+    {id:"sunset", grad:"linear-gradient(135deg,#ff9457,#ff6188)"},
+    {id:"rose", grad:"linear-gradient(135deg,#ff7bac,#c084fc)"},
+    {id:"violet", grad:"linear-gradient(135deg,#a78bfa,#6d5bff)"},
+    {id:"emerald", grad:"linear-gradient(135deg,#34d399,#22a5b8)"},
+    {id:"ocean", grad:"linear-gradient(135deg,#38bdf8,#6366f1)"}
+  ];
+  const swatchRow = b3.querySelector("#swatchRow");
+  const currentAccent = document.body.getAttribute("data-accent") || "default";
+  swatches.forEach(s=>{
+    const el = document.createElement("div");
+    el.className = "swatch" + (s.id===currentAccent ? " active":"");
+    el.style.background = s.grad;
+    el.title = s.id;
+    el.textContent = s.id===currentAccent ? "✓" : "";
+    el.addEventListener("click", ()=>{
+      applyAccent(s.id);
+      renderSettingsView(container); // refresh active state
+    });
+    swatchRow.appendChild(el);
+  });
+
+  // Content management
+  const b5 = document.createElement("div");
+  b5.className = "settings-block";
+  b5.innerHTML = `<h3>إدارة المحتوى</h3>
+    <div class="settings-row">
+      <button class="mini-btn" id="stContentMgr">📚 إضافة وتعديل الأقسام والمواضيع</button>
+    </div>`;
+  container.appendChild(b5);
+
+  // Backup
+  const b4 = document.createElement("div");
+  b4.className = "settings-block";
+  b4.innerHTML = `<h3>النسخ الاحتياطي</h3>
+    <div class="settings-row">
+      <button class="mini-btn" id="stExport">⬇️ تصدير التقدم</button>
+      <button class="mini-btn" id="stImport">⬆️ استيراد التقدم</button>
+      <button class="mini-btn" id="stReset" style="color:#ff6b6b;">🗑️ تصفير الكل</button>
+    </div>`;
+  container.appendChild(b4);
+
+  container.querySelector("#stThemeToggle").addEventListener("click", ()=>{
+    toggleTheme();
+    renderSettingsView(container);
+  });
+  container.querySelector("#stViewDash").addEventListener("click", ()=>{
+    setViewMode("dashboard"); renderSettingsView(container); renderGrid();
+    showToast("تم التحويل لطريقة اللوحات");
+  });
+  container.querySelector("#stViewList").addEventListener("click", ()=>{
+    setViewMode("list"); renderSettingsView(container); renderGrid();
+    showToast("تم التحويل لطريقة القائمة");
+  });
+  container.querySelector("#stPerfToggle").addEventListener("click", ()=>{
+    setPerfMode(document.body.getAttribute("data-perf") !== "lite");
+    renderSettingsView(container);
+    showToast(document.body.getAttribute("data-perf")==="lite" ? "تم تفعيل الوضع الخفيف" : "تم إيقاف الوضع الخفيف");
+  });
+  container.querySelector("#fsMinus").addEventListener("click", ()=>{ setFontScale(getFontScale()-0.05); renderSettingsView(container); });
+  container.querySelector("#fsPlus").addEventListener("click", ()=>{ setFontScale(getFontScale()+0.05); renderSettingsView(container); });
+  container.querySelector("#fsReset").addEventListener("click", ()=>{ setFontScale(1); renderSettingsView(container); });
+  container.querySelector("#stExport").addEventListener("click", exportData);
+  container.querySelector("#stImport").addEventListener("click", ()=> document.getElementById("importFile").click());
+  container.querySelector("#stReset").addEventListener("click", resetAll);
+  container.querySelector("#stContentMgr").addEventListener("click", ()=>{
+    openGenericModal({
+      icon:"📚", title:"إدارة المحتوى", sub:"أضف قسم أو محور أو موضوع، أو عدّل الموجود",
+      renderFn: renderContentManager
+    });
+  });
+}
+
+/* ================= CONTENT MANAGER UI ================= */
+function buildAddSectionForm(formHolder, onCreated){
+  if(formHolder.firstChild){ formHolder.innerHTML=""; return; }
+  const colors = ["#5eead4","#ffb648","#c084fc","#4ade80","#60a5fa","#ff7bac","#f97316","#38bdf8"];
+  const form = document.createElement("div");
+  form.className = "cm-add-form";
+  form.innerHTML = `
+    <input type="text" placeholder="اسم القسم (مثال: Emergency Medicine)" class="cm-title">
+    <input type="text" placeholder="إيموجي كأيقونة (مثال: 🚑)" class="cm-icon" maxlength="4">
+    <div class="cm-icon-swatches"></div>
+    <button class="mini-btn cm-submit">إنشاء القسم</button>
+  `;
+  const swatchRow = form.querySelector(".cm-icon-swatches");
+  let chosenColor = colors[0];
+  colors.forEach((c,i)=>{
+    const dot = document.createElement("div");
+    dot.className = "cm-color-dot" + (i===0?" active":"");
+    dot.style.background = c;
+    dot.addEventListener("click", ()=>{
+      chosenColor = c;
+      swatchRow.querySelectorAll(".cm-color-dot").forEach(d=>d.classList.remove("active"));
+      dot.classList.add("active");
+    });
+    swatchRow.appendChild(dot);
+  });
+  form.querySelector(".cm-submit").addEventListener("click", ()=>{
+    const title = form.querySelector(".cm-title").value.trim();
+    const icon = form.querySelector(".cm-icon").value.trim() || "📘";
+    if(!title){ showToast("اكتب اسم القسم أولاً"); return; }
+    const newId = addCustomSection(title, icon, chosenColor);
+    formHolder.innerHTML = "";
+    renderGrid();
+    showToast("تم إنشاء القسم — أضف له محاور ومواضيع");
+    if(onCreated) onCreated(newId);
+  });
+  formHolder.appendChild(form);
+}
+
+function renderContentManager(container){
+  container.innerHTML = "";
+
+  const addSecBtn = document.createElement("button");
+  addSecBtn.className = "mini-btn";
+  addSecBtn.style.marginBottom = "14px";
+  addSecBtn.textContent = "➕ إضافة قسم رئيسي جديد";
+  container.appendChild(addSecBtn);
+
+  const formHolder = document.createElement("div");
+  container.appendChild(formHolder);
+
+  addSecBtn.addEventListener("click", ()=>{
+    buildAddSectionForm(formHolder, ()=>{ renderContentManager(container); });
+  });
+
+  DATA_ALL.forEach(section=>{
+    const isCustom = section.id.startsWith("custom_");
+    const hidden = isSectionHidden(section.id);
+    const secBox = document.createElement("div");
+    secBox.className = "cm-section";
+
+    const head = document.createElement("div");
+    head.className = "cm-section-head" + (hidden ? " hidden-item":"");
+    head.innerHTML = `
+      <span class="theme-chevron">▾</span>
+      <div class="tile-icon" style="width:30px;height:30px;font-size:14px;background:${section.color}33">${section.icon}</div>
+      <div class="cm-name" style="flex:1;font-weight:800;font-size:13.5px;">${section.title}</div>
+      <span class="cm-badge">${isCustom ? "مخصص" : "افتراضي"}</span>
+      <button class="cm-icon-btn" title="${hidden?'إظهار القسم':'حذف القسم'}" data-act="toggle-section">${hidden?'👁️':'🗑️'}</button>
+    `;
+    head.querySelector('[data-act="toggle-section"]').addEventListener("click", async (e)=>{
+      e.stopPropagation();
+      if(hidden){
+        unhideSection(section.id);
+        renderContentManager(container);
+        renderGrid();
+        showToast("تم إظهار القسم مرة أخرى");
+      } else {
+        const ok = await customConfirm("حذف القسم", `هل تريد حذف قسم "${section.title}"؟ يمكنك إظهاره مرة أخرى من هنا في أي وقت.`);
+        if(ok){
+          hideSection(section.id);
+          renderContentManager(container);
+          renderGrid();
+          showToast("تم حذف القسم");
+        }
+      }
+    });
+    secBox.appendChild(head);
+
+    const body = document.createElement("div");
+    body.className = "cm-section-body";
+    head.addEventListener("click", (e)=>{
+      if(e.target.closest('[data-act="toggle-section"]')) return;
+      head.querySelector(".theme-chevron").classList.toggle("expanded");
+      body.classList.toggle("open");
+      if(body.classList.contains("open") && !body.dataset.built){
+        buildSectionManagerBody(body, section);
+        body.dataset.built = "1";
+      }
+    });
+    secBox.appendChild(body);
+    container.appendChild(secBox);
+  });
+}
+
+function buildSectionManagerBody(body, section){
+  body.innerHTML = "";
+  const sectionId = section.id;
+
+  const addThemeBtn = document.createElement("button");
+  addThemeBtn.className = "mini-btn";
+  addThemeBtn.style.margin = "10px 0";
+  addThemeBtn.textContent = "➕ إضافة محور جديد";
+  addThemeBtn.addEventListener("click", async ()=>{
+    const name = await customPrompt("اسم المحور الجديد (مثال: Cardiology)");
+    if(name && name.trim()){
+      addThemeToSection(sectionId, name.trim());
+      const fresh = DATA.find(s=>s.id===sectionId);
+      buildSectionManagerBody(body, fresh);
+      renderGrid();
+      showToast("تمت إضافة المحور");
+    }
+  });
+  body.appendChild(addThemeBtn);
+
+  section.themes.forEach((theme, ti)=>{
+    const hidden = isThemeHidden(sectionId, ti);
+    const tRow = document.createElement("div");
+    tRow.className = "cm-theme-row" + (hidden ? " hidden-item":"");
+    tRow.innerHTML = `
+      <span class="theme-chevron" style="width:16px;">▾</span>
+      <span class="cm-name">${theme.name}</span>
+      <button class="cm-icon-btn" title="إعادة تسمية" data-act="rename">✏️</button>
+      <button class="cm-icon-btn" title="${hidden?'إظهار':'إخفاء'}" data-act="toggle">${hidden?'👁️':'🚫'}</button>
+    `;
+    body.appendChild(tRow);
+
+    const topicsBox = document.createElement("div");
+    topicsBox.style.display = "none";
+    body.appendChild(topicsBox);
+
+    tRow.querySelector(".theme-chevron").addEventListener("click", ()=>{
+      const open = topicsBox.style.display !== "none";
+      topicsBox.style.display = open ? "none" : "block";
+      if(!open){
+        const fresh = DATA.find(s=>s.id===sectionId);
+        buildThemeManagerTopics(topicsBox, fresh, ti);
+      }
+    });
+    tRow.querySelector('[data-act="rename"]').addEventListener("click", async ()=>{
+      const nn = await customPrompt("اسم المحور الجديد", theme.name);
+      if(nn && nn.trim()){
+        renameTheme(sectionId, ti, nn.trim());
+        const fresh = DATA.find(s=>s.id===sectionId);
+        buildSectionManagerBody(body, fresh);
+        renderGrid();
+      }
+    });
+    tRow.querySelector('[data-act="toggle"]').addEventListener("click", ()=>{
+      if(hidden) unhideTheme(sectionId, ti); else hideTheme(sectionId, ti);
+      const fresh = DATA.find(s=>s.id===sectionId);
+      buildSectionManagerBody(body, fresh);
+      renderGrid();
+    });
+  });
+}
+
+function buildThemeManagerTopics(topicsBox, section, ti){
+  topicsBox.innerHTML = "";
+  const sectionId = section.id;
+  const theme = section.themes[ti];
+
+  const addTopicBtn = document.createElement("button");
+  addTopicBtn.className = "mini-btn";
+  addTopicBtn.style.margin = "6px 0 8px 26px";
+  addTopicBtn.textContent = "➕ إضافة موضوع";
+  addTopicBtn.addEventListener("click", async ()=>{
+    const text = await customPrompt("نص الموضوع الجديد");
+    if(text && text.trim()){
+      addTopicToTheme(sectionId, ti, text.trim());
+      const fresh = DATA.find(s=>s.id===sectionId);
+      buildThemeManagerTopics(topicsBox, fresh, ti);
+      renderGrid();
+      showToast("تمت إضافة الموضوع");
+    }
+  });
+  topicsBox.appendChild(addTopicBtn);
+
+  theme.topics.forEach((tp, pi)=>{
+    const hidden = isTopicHidden(sectionId, ti, pi);
+    const pRow = document.createElement("div");
+    pRow.className = "cm-topic-row" + (hidden ? " hidden-item":"");
+    pRow.innerHTML = `
+      <span class="cm-name">${tp}</span>
+      <button class="cm-icon-btn" title="إعادة تسمية" data-act="rename">✏️</button>
+      <button class="cm-icon-btn" title="${hidden?'إظهار':'إخفاء'}" data-act="toggle">${hidden?'👁️':'🚫'}</button>
+    `;
+    pRow.querySelector('[data-act="rename"]').addEventListener("click", async ()=>{
+      const nn = await customPrompt("نص الموضوع الجديد", tp);
+      if(nn && nn.trim()){
+        renameTopic(sectionId, ti, pi, nn.trim());
+        const fresh = DATA.find(s=>s.id===sectionId);
+        buildThemeManagerTopics(topicsBox, fresh, ti);
+      }
+    });
+    pRow.querySelector('[data-act="toggle"]').addEventListener("click", ()=>{
+      if(hidden) unhideTopic(sectionId, ti, pi); else hideTopic(sectionId, ti, pi);
+      const fresh = DATA.find(s=>s.id===sectionId);
+      buildThemeManagerTopics(topicsBox, fresh, ti);
+      renderGrid();
+    });
+    topicsBox.appendChild(pRow);
+  });
+}
+
+/* ================= FONT SCALE ================= */
+function getFontScale(){ return parseFloat(localStorage.getItem(FS_KEY) || "1"); }
+function setFontScale(v){
+  v = Math.max(0.8, Math.min(1.6, Math.round(v*100)/100));
+  document.documentElement.style.zoom = v;
+  localStorage.setItem(FS_KEY, v);
+}
+setFontScale(getFontScale());
+
+/* ================= GLOBAL SEARCH ================= */
+const searchResultsEl = document.getElementById("searchResults");
+let searchDebounceTimer = null;
+document.getElementById("searchBox").addEventListener("input",(e)=>{
+  clearTimeout(searchDebounceTimer);
+  const val = e.target.value;
+  searchDebounceTimer = setTimeout(()=> runSearch(val), 150);
+});
+function runSearch(rawVal){
+  const q = rawVal.trim().toLowerCase();
+  if(!q){ gridEl.style.display="grid"; searchResultsEl.innerHTML=""; return; }
+  gridEl.style.display="none";
+
+  let html = "";
+  DATA.forEach(section=>{
+    const matches = [];
+    section.themes.forEach((th,ti)=>{
+      if(isThemeHidden(section.id, ti)) return;
+      th.topics.forEach((tp,pi)=>{
+        if(isTopicHidden(section.id, ti, pi)) return;
+        if(tp.toLowerCase().includes(q)) matches.push({tp,ti,pi,themeName:th.name});
+      });
+    });
+    if(matches.length===0) return;
+    html += `<div class="glass" style="padding:16px 18px;margin-bottom:14px;border-radius:20px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div class="tile-icon" style="width:34px;height:34px;font-size:16px;background:${section.color}33">${section.icon}</div>
+        <div style="font-weight:800;font-size:15px;">${section.title}</div>
+        <button class="mini-btn" style="margin-inline-start:auto;" data-open-section="${section.id}">فتح القسم</button>
+      </div>`;
+    matches.forEach(m=>{
+      const key = topicKey(section.id, m.ti, m.pi);
+      const isDone = !!progress[key];
+      html += `<div class="topic-row${isDone?" done":""}" style="cursor:pointer;" data-jump-section="${section.id}" data-jump-ti="${m.ti}" data-jump-pi="${m.pi}">
+        <span>${isDone?"✅":"⬜"}</span><label>${m.tp} <span style="color:var(--muted);font-size:11px;">— ${m.themeName}</span></label>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  searchResultsEl.innerHTML = html || `<div class="empty-state">لا توجد نتائج</div>`;
+
+  searchResultsEl.querySelectorAll("[data-open-section]").forEach(el=>{
+    el.addEventListener("click",()=>{
+      const id = el.dataset.openSection;
+      if(getViewMode()==="list") openModal(id);
+      else openSectionDashboard(id);
+    });
+  });
+  searchResultsEl.querySelectorAll("[data-jump-section]").forEach(el=>{
+    el.addEventListener("click",()=>{
+      const id = el.dataset.jumpSection;
+      const ti = parseInt(el.dataset.jumpTi);
+      const pi = parseInt(el.dataset.jumpPi);
+      if(getViewMode()==="list"){
+        openModal(id, "", ti, pi);
+      } else {
+        openThemeDashboard(id, ti);
+      }
+    });
+  });
+}
+
+/* ================= TOAST ================= */
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=> t.classList.remove("show"), 2200);
+}
+
+/* ================= CUSTOM DIALOGS (replace native prompt/confirm/alert,
+   which are unreliable or silently blocked inside installed PWAs) ================= */
+const dialogOverlay = document.getElementById("dialogOverlay");
+const dialogTitle = document.getElementById("dialogTitle");
+const dialogMessage = document.getElementById("dialogMessage");
+const dialogInput = document.getElementById("dialogInput");
+const dialogOk = document.getElementById("dialogOk");
+const dialogCancel = document.getElementById("dialogCancel");
+const dialogClose = document.getElementById("dialogClose");
+let _dialogResolve = null;
+
+function _closeDialog(result){
+  dialogOverlay.classList.remove("open");
+  if(_dialogResolve){ const r = _dialogResolve; _dialogResolve = null; r(result); }
+}
+dialogCancel.addEventListener("click", ()=> _closeDialog(null));
+dialogClose.addEventListener("click", ()=> _closeDialog(null));
+dialogOverlay.addEventListener("click", (e)=>{ if(e.target===dialogOverlay) _closeDialog(null); });
+dialogOk.addEventListener("click", ()=>{
+  if(dialogInput.style.display!=="none"){
+    _closeDialog(dialogInput.value.trim() || null);
+  } else {
+    _closeDialog(true);
+  }
+});
+dialogInput.addEventListener("keydown",(e)=>{ if(e.key==="Enter") dialogOk.click(); });
+
+function customPrompt(title, defaultValue=""){
+  return new Promise((resolve)=>{
+    _dialogResolve = resolve;
+    dialogTitle.textContent = title;
+    dialogMessage.style.display = "none";
+    dialogInput.style.display = "block";
+    dialogInput.value = defaultValue;
+    dialogOk.textContent = "تأكيد";
+    dialogCancel.style.display = "inline-flex";
+    dialogOverlay.classList.add("open");
+    setTimeout(()=> dialogInput.focus(), 50);
+  });
+}
+function customConfirm(title, message){
+  return new Promise((resolve)=>{
+    _dialogResolve = resolve;
+    dialogTitle.textContent = title;
+    dialogMessage.textContent = message || "";
+    dialogMessage.style.display = "block";
+    dialogInput.style.display = "none";
+    dialogOk.textContent = "تأكيد";
+    dialogCancel.style.display = "inline-flex";
+    dialogOverlay.classList.add("open");
+  });
+}
+function customAlert(title, message){
+  return new Promise((resolve)=>{
+    _dialogResolve = resolve;
+    dialogTitle.textContent = title;
+    dialogMessage.textContent = message || "";
+    dialogMessage.style.display = "block";
+    dialogInput.style.display = "none";
+    dialogOk.textContent = "حسناً";
+    dialogCancel.style.display = "none";
+    dialogOverlay.classList.add("open");
+  });
+}
+
+/* ================= EXPORT / IMPORT / RESET ================= */
+function exportData(){
+  const payload = {progress, resources, activity};
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "emle_progress_" + new Date().toISOString().slice(0,10) + ".json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("تم تصدير التقدم بنجاح");
+}
+document.getElementById("importFile") // created below in body via settings, but declare handler container
+;
+const importFileInput = document.createElement("input");
+importFileInput.type = "file";
+importFileInput.accept = ".json";
+importFileInput.id = "importFile";
+importFileInput.style.display = "none";
+document.body.appendChild(importFileInput);
+importFileInput.addEventListener("change",(e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(data.progress || data.resources || data.activity){
+        progress = data.progress || {};
+        resources = data.resources || {};
+        activity = data.activity || {};
+      } else {
+        progress = data;
+      }
+      saveProgress(); saveResources(); saveActivity();
+      updateStreakPill();
+      renderGrid();
+      showToast("تم استيراد التقدم بنجاح");
+    }catch(err){
+      showToast("خطأ: الملف غير صالح");
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+async function resetAll(){
+  const ok = await customConfirm("تصفير كل التقدم", "هل أنت متأكد من تصفير كل التقدم؟ لا يمكن التراجع عن هذا الإجراء.");
+  if(ok){
+    progress = {};
+    saveProgress();
+    renderGrid();
+    showToast("تم تصفير كل التقدم");
+  }
+}
+
+/* ================= THEME / ACCENT / PERFORMANCE ================= */
+const PERF_KEY = "emle_perf_mode";
+function toggleTheme(){
+  const current = document.body.getAttribute("data-theme");
+  const next = current==="dark" ? "light" : "dark";
+  document.body.setAttribute("data-theme", next);
+  localStorage.setItem(THEME_KEY, next);
+}
+function applyAccent(id){
+  if(id==="default") document.body.removeAttribute("data-accent");
+  else document.body.setAttribute("data-accent", id);
+  localStorage.setItem(ACCENT_KEY, id);
+}
+function setPerfMode(on){
+  if(on) document.body.setAttribute("data-perf", "lite");
+  else document.body.removeAttribute("data-perf");
+  localStorage.setItem(PERF_KEY, on ? "1" : "0");
+}
+document.body.setAttribute("data-theme", localStorage.getItem(THEME_KEY) || "dark");
+applyAccent(localStorage.getItem(ACCENT_KEY) || "default");
+setPerfMode(localStorage.getItem(PERF_KEY) === "1");
+setVisualTheme(getVisualTheme());
+
+/* ================= INIT ================= */
+renderGrid();
+updateOverallProgress();
+updateStreakPill();
+renderGarden();
+</script>
+</body>
+</html>
